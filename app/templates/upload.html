@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Video - FAAAAACES{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-upload"></i> Upload Video</h4>
+            </div>
+            <div class="card-body">
+                <!-- File Upload -->
+                <div class="upload-zone" id="uploadZone">
+                    <div id="uploadContent">
+                        <i class="fas fa-cloud-upload-alt fa-4x text-muted mb-3"></i>
+                        <h5>Drag & Drop Video Files Here</h5>
+                        <p class="text-muted">or click to select files</p>
+                        <input type="file" id="videoFile" accept="video/*" multiple style="display: none;">
+                        <button class="btn btn-primary" onclick="document.getElementById('videoFile').click()">
+                            <i class="fas fa-folder-open"></i> Select Videos
+                        </button>
+                    </div>
+                    
+                    <div id="uploadProgress" style="display: none;">
+                        <div class="progress mb-3">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <p class="mb-0">Uploading...</p>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h6>Supported Formats:</h6>
+                    <p class="text-muted small">
+                        MP4, AVI, MOV, MKV, WMV, FLV, WebM, M4V, 3GP, OGV, TS, MTS
+                    </p>
+                </div>
+
+                <!-- Upload Results -->
+                <div id="uploadResults" class="mt-4" style="display: none;">
+                    <h6>Upload Results:</h6>
+                    <div id="resultsList"></div>
+                </div>
+
+                <!-- Or URL Input -->
+                <hr class="my-4">
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-link"></i> Process from URL</h6>
+                        <div class="input-group mb-3">
+                            <input type="url" class="form-control" id="singleUrl" placeholder="https://youtube.com/watch?v=...">
+                            <button class="btn btn-outline-primary" onclick="processSingleUrl()">
+                                <i class="fas fa-play"></i> Process
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-list"></i> Batch Process URLs</h6>
+                        <div class="mb-3">
+                            <textarea class="form-control" id="batchUrls" rows="3" placeholder="One URL per line..."></textarea>
+                        </div>
+                        <button class="btn btn-outline-success w-100" onclick="processBatchUrls()">
+                            <i class="fas fa-tasks"></i> Process All URLs
+                        </button>
+                    </div>
+                </div>
+
+                <!-- URL Results -->
+                <div id="urlResults" class="mt-4" style="display: none;">
+                    <h6>URL Processing Results:</h6>
+                    <div id="urlResultsList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Queue -->
+        <div class="card mt-4" id="processingQueue" style="display: none;">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-cog fa-spin"></i> Processing Queue</h6>
+            </div>
+            <div class="card-body">
+                <div id="queueList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// File upload handling
+const uploadZone = document.getElementById('uploadZone');
+const videoFile = document.getElementById('videoFile');
+const uploadContent = document.getElementById('uploadContent');
+const uploadProgress = document.getElementById('uploadProgress');
+const uploadResults = document.getElementById('uploadResults');
+const resultsList = document.getElementById('resultsList');
+
+// Drag and drop handlers
+uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('dragover');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('dragover');
+});
+
+uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    handleFiles(files);
+});
+
+uploadZone.addEventListener('click', () => {
+    videoFile.click();
+});
+
+videoFile.addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+});
+
+function handleFiles(files) {
+    if (files.length === 0) return;
+    
+    uploadContent.style.display = 'none';
+    uploadProgress.style.display = 'block';
+    uploadResults.style.display = 'block';
+    
+    resultsList.innerHTML = '';
+    let completed = 0;
+    const total = files.length;
+    
+    Array.from(files).forEach((file, index) => {
+        uploadFile(file, (result) => {
+            completed++;
+            
+            // Update progress
+            const percent = (completed / total) * 100;
+            document.querySelector('.progress-bar').style.width = percent + '%';
+            
+            // Add result
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'alert ' + (result.success ? 'alert-success' : 'alert-danger');
+            resultDiv.innerHTML = `
+                <strong>${file.name}</strong>: 
+                ${result.success ? 
+                    `Successfully uploaded (Video ID: ${result.video_id})` : 
+                    `Failed - ${result.error}`
+                }
+            `;
+            resultsList.appendChild(resultDiv);
+            
+            if (completed === total) {
+                setTimeout(() => {
+                    uploadContent.style.display = 'block';
+                    uploadProgress.style.display = 'none';
+                    // Reset file input
+                    videoFile.value = '';
+                }, 1000);
+            }
+        });
+    });
+}
+
+function uploadFile(file, callback) {
+    const formData = new FormData();
+    formData.append('video', file);
+    
+    fetch('/api/upload_video', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        callback({
+            success: !data.error,
+            video_id: data.video_id,
+            error: data.error
+        });
+    })
+    .catch(error => {
+        callback({
+            success: false,
+            error: error.message
+        });
+    });
+}
+
+function processSingleUrl() {
+    const url = document.getElementById('singleUrl').value.trim();
+    if (!url) {
+        alert('Please enter a URL');
+        return;
+    }
+    
+    processUrls([url], 'single');
+}
+
+function processBatchUrls() {
+    const urlsText = document.getElementById('batchUrls').value.trim();
+    if (!urlsText) {
+        alert('Please enter at least one URL');
+        return;
+    }
+    
+    const urls = urlsText.split('\n').filter(url => url.trim());
+    processUrls(urls, 'batch');
+}
+
+function processUrls(urls, type) {
+    const urlResults = document.getElementById('urlResults');
+    const urlResultsList = document.getElementById('urlResultsList');
+    
+    urlResults.style.display = 'block';
+    urlResultsList.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Processing URLs...</div>';
+    
+    if (urls.length === 1) {
+        // Single URL
+        fetch('/api/process_url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: urls[0] })
+        })
+        .then(response => response.json())
+        .then(data => {
+            urlResultsList.innerHTML = `
+                <div class="alert ${data.error ? 'alert-danger' : 'alert-success'}">
+                    <strong>${urls[0]}</strong>: 
+                    ${data.error ? 
+                        `Failed - ${data.error}` : 
+                        `Successfully started processing (Video ID: ${data.video_id})`
+                    }
+                </div>
+            `;
+            
+            if (!data.error) {
+                document.getElementById('singleUrl').value = '';
+            }
+        })
+        .catch(error => {
+            urlResultsList.innerHTML = `
+                <div class="alert alert-danger">
+                    Error processing URL: ${error.message}
+                </div>
+            `;
+        });
+    } else {
+        // Multiple URLs
+        fetch('/api/process_urls', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls: urls })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                urlResultsList.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error: ${data.error}
+                    </div>
+                `;
+            } else {
+                let html = `
+                    <div class="alert alert-info">
+                        Processed ${data.successful}/${data.total} URLs successfully
+                    </div>
+                `;
+                
+                data.results.forEach(result => {
+                    html += `
+                        <div class="alert ${result.success ? 'alert-success' : 'alert-danger'} py-2">
+                            <strong>${result.url}</strong>: 
+                            ${result.success ? 
+                                `Success (Video ID: ${result.video_id})` : 
+                                `Failed - ${result.error}`
+                            }
+                        </div>
+                    `;
+                });
+                
+                urlResultsList.innerHTML = html;
+                
+                if (data.successful > 0) {
+                    document.getElementById('batchUrls').value = '';
+                }
+            }
+        })
+        .catch(error => {
+            urlResultsList.innerHTML = `
+                <div class="alert alert-danger">
+                    Error processing URLs: ${error.message}
+                </div>
+            `;
+        });
+    }
+}
+</script>
+{% endblock %}
