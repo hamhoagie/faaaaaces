@@ -5,7 +5,14 @@ import cv2
 import os
 from typing import List, Tuple, Dict, Generator
 import tempfile
-from moviepy.editor import VideoFileClip
+
+# Optional moviepy import
+try:
+    from moviepy.editor import VideoFileClip
+    MOVIEPY_AVAILABLE = True
+except ImportError:
+    MOVIEPY_AVAILABLE = False
+    print("⚠️  MoviePy not available, some video features may be limited")
 
 class VideoProcessor:
     def __init__(self, frame_interval: int = 30):

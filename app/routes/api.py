@@ -8,7 +8,14 @@ from werkzeug.utils import secure_filename
 from app.models.database import VideoModel, FaceModel, ProcessingJobModel
 from app.services.video_downloader import VideoDownloader
 from app.services.video_processor import VideoProcessor
-from app.services.face_extractor import FaceExtractor
+# Try to import DeepFace version, fallback to basic version
+try:
+    from app.services.face_extractor import FaceExtractor
+    DEEPFACE_AVAILABLE = True
+except ImportError:
+    from app.services.face_extractor_basic import BasicFaceExtractor as FaceExtractor
+    DEEPFACE_AVAILABLE = False
+    print("⚠️  DeepFace not available, using basic OpenCV face detection")
 from app.services.face_clustering import FaceClusterer
 
 api_bp = Blueprint('api', __name__)
@@ -82,6 +89,11 @@ def process_url():
         
         url = data['url']
         
+        # Validate URL format
+        is_valid, platform, validation_error = video_downloader.validate_url_format(url)
+        if not is_valid:
+            return jsonify({'error': validation_error}), 400
+        
         # Download video
         success, file_path, video_info, error_msg = video_downloader.download_from_url(url)
         
@@ -102,7 +114,6 @@ def process_url():
         # Create video record
         video_id = VideoModel.create(
             filename=os.path.basename(file_path),
-            source_url=url,
             source_type='url',
             **video_info
         )
@@ -145,7 +156,6 @@ def process_multiple_urls():
                     # Create video record
                     video_id = VideoModel.create(
                         filename=os.path.basename(file_path),
-                        source_url=url,
                         source_type='url',
                         **video_info
                     )
@@ -245,6 +255,48 @@ def get_clusters():
     try:
         clusters = FaceClusterModel.get_all_with_faces()
         return jsonify({'clusters': clusters})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/supported_platforms')
+def get_supported_platforms():
+    """Get supported platforms and tips"""
+    try:
+        platforms = video_downloader.get_supported_platforms()
+        return jsonify({
+            'platforms': platforms,
+            'tips': {
+                'instagram': video_downloader.get_platform_tips('instagram'),
+                'tiktok': video_downloader.get_platform_tips('tiktok'),
+                'youtube': video_downloader.get_platform_tips('youtube')
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/validate_url', methods=['POST'])
+def validate_url():
+    """Validate URL and detect platform"""
+    try:
+        data = request.get_json()
+        if not data or 'url' not in data:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        url = data['url']
+        is_valid, platform, error_message = video_downloader.validate_url_format(url)
+        
+        response = {
+            'valid': is_valid,
+            'platform': platform,
+            'message': error_message or f"Valid {platform} URL detected"
+        }
+        
+        if is_valid:
+            response['tips'] = video_downloader.get_platform_tips(platform)
+        
+        return jsonify(response)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

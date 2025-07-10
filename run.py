@@ -14,8 +14,12 @@ if __name__ == '__main__':
     os.makedirs('temp', exist_ok=True)
     
     # Run the application
+    port = int(os.getenv('PORT', 5001))  # Use 5001 as default to avoid conflicts
+    print(f"\n🚀 Starting FAAAAACES on http://localhost:{port}")
+    print("📹 Ready to process videos with face recognition!")
+    
     app.run(
         host='0.0.0.0',
-        port=int(os.getenv('PORT', 5000)),
+        port=port,
         debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     )

@@ -31,7 +31,7 @@
                 </div>
 
                 <div class="mt-4">
-                    <h6>Supported Formats:</h6>
+                    <h6>Supported File Formats:</h6>
                     <p class="text-muted small">
                         MP4, AVI, MOV, MKV, WMV, FLV, WebM, M4V, 3GP, OGV, TS, MTS
                     </p>
@@ -43,27 +43,86 @@
                     <div id="resultsList"></div>
                 </div>
 
-                <!-- Or URL Input -->
+                <!-- Supported Platforms -->
+                <div class="mt-4">
+                    <h6><i class="fas fa-globe"></i> Supported Platforms:</h6>
+                    <div class="row">
+                        <div class="col-md-3 col-6 mb-2">
+                            <span class="badge bg-danger fs-6"><i class="fab fa-youtube"></i> YouTube</span>
+                        </div>
+                        <div class="col-md-3 col-6 mb-2">
+                            <span class="badge bg-gradient" style="background: linear-gradient(45deg, #fd5949, #d6249f, #285AEB)"><i class="fab fa-instagram"></i> Instagram</span>
+                        </div>
+                        <div class="col-md-3 col-6 mb-2">
+                            <span class="badge bg-dark fs-6"><i class="fab fa-tiktok"></i> TikTok</span>
+                        </div>
+                        <div class="col-md-3 col-6 mb-2">
+                            <span class="badge bg-info fs-6"><i class="fab fa-vimeo"></i> Vimeo</span>
+                        </div>
+                    </div>
+                    <p class="text-muted small mt-2">
+                        <i class="fas fa-info-circle"></i> Works with public posts, reels, videos, and many other sites supported by yt-dlp
+                    </p>
+                </div>
+
+                <!-- URL Input -->
                 <hr class="my-4">
                 
                 <div class="row">
                     <div class="col-md-6">
                         <h6><i class="fas fa-link"></i> Process from URL</h6>
                         <div class="input-group mb-3">
-                            <input type="url" class="form-control" id="singleUrl" placeholder="https://youtube.com/watch?v=...">
+                            <input type="url" class="form-control" id="singleUrl" placeholder="Paste YouTube, Instagram, TikTok, or other video URL...">
                             <button class="btn btn-outline-primary" onclick="processSingleUrl()">
                                 <i class="fas fa-play"></i> Process
                             </button>
+                        </div>
+                        <div class="form-text">
+                            <strong>Examples:</strong><br>
+                            <small class="text-muted">
+                                • https://youtube.com/watch?v=...<br>
+                                • https://instagram.com/p/...<br>
+                                • https://tiktok.com/@user/video/...<br>
+                                • https://vimeo.com/...
+                            </small>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <h6><i class="fas fa-list"></i> Batch Process URLs</h6>
                         <div class="mb-3">
-                            <textarea class="form-control" id="batchUrls" rows="3" placeholder="One URL per line..."></textarea>
+                            <textarea class="form-control" id="batchUrls" rows="4" placeholder="One URL per line...
+https://youtube.com/watch?v=...
+https://instagram.com/reel/...
+https://tiktok.com/@user/video/..."></textarea>
                         </div>
                         <button class="btn btn-outline-success w-100" onclick="processBatchUrls()">
                             <i class="fas fa-tasks"></i> Process All URLs
                         </button>
+                    </div>
+                </div>
+                
+                <!-- Platform Tips -->
+                <div class="mt-3">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-lightbulb"></i> Platform Tips:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Instagram:</strong>
+                                <ul class="small mb-0">
+                                    <li>Only public posts/reels work</li>
+                                    <li>Use full URLs (instagram.com/p/... or /reel/...)</li>
+                                    <li>Stories expire after 24 hours</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>TikTok:</strong>
+                                <ul class="small mb-0">
+                                    <li>Public videos only</li>
+                                    <li>Both long and short URLs work</li>
+                                    <li>Some content may be region-locked</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

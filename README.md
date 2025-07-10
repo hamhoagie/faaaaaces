@@ -6,8 +6,12 @@ A Python web application that processes videos to extract and catalog faces usin
 
 ### 🎥 Video Input Methods
 - **File Upload**: Direct upload of video files (MP4, AVI, MOV, etc.)
-- **URL Processing**: Download and process videos from URLs (YouTube, Vimeo, direct links)
-- **Batch Processing**: Process multiple URLs simultaneously
+- **URL Processing**: Download and process videos from multiple platforms:
+  - 🔴 **YouTube** (youtube.com, youtu.be)
+  - 📸 **Instagram** (posts, reels, IGTV)
+  - 🎵 **TikTok** (videos, including short links)
+  - 🎬 **Vimeo** and many other platforms
+- **Batch Processing**: Process multiple URLs simultaneously from different platforms
 
 ### 🔍 Face Processing Pipeline
 - **Face Detection**: Extract faces from video frames using DeepFace
@@ -54,9 +58,15 @@ Visit `http://localhost:5000` to access the web interface.
 3. Wait for processing to complete
 
 **Option B: Process from URL**
-1. Enter a video URL (YouTube, Vimeo, etc.)
+1. Enter a video URL (YouTube, Instagram, TikTok, Vimeo, etc.)
 2. Click "Process" 
 3. The video will be downloaded and processed automatically
+
+**Supported URL formats:**
+- YouTube: `https://youtube.com/watch?v=...` or `https://youtu.be/...`
+- Instagram: `https://instagram.com/p/...` or `https://instagram.com/reel/...`
+- TikTok: `https://tiktok.com/@user/video/...` or `https://vm.tiktok.com/...`
+- Vimeo: `https://vimeo.com/...`
 
 **Option C: Batch processing**
 1. Enter multiple URLs (one per line)
@@ -147,6 +157,25 @@ python -c "from deepface import DeepFace; DeepFace.build_model('VGG-Face')"
 # Update yt-dlp for latest site support
 pip install yt-dlp --upgrade
 ```
+
+**Platform-Specific Issues**
+
+**Instagram:**
+- Only public posts and reels work (private accounts not supported)
+- Use full URLs: `instagram.com/p/...` or `instagram.com/reel/...`
+- Stories may not be available after 24 hours
+- Rate limiting: wait a few minutes between many requests
+
+**TikTok:**
+- Only public videos are downloadable
+- Both full URLs and short links (`vm.tiktok.com`) work
+- Some content may be region-locked
+- Private accounts require the content to be public
+
+**YouTube:**
+- Private, unlisted, or age-restricted videos cannot be downloaded
+- Very long videos may exceed size limits
+- Live streams may not be supported
 
 **OpenCV Issues**
 ```bash
