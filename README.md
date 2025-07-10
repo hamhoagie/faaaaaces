@@ -1,6 +1,6 @@
 # FAAAAACES - Face Recognition Video Processing Application
 
-A Python web application that processes videos to extract and catalog faces using DeepFace and machine learning clustering.
+A Python web application that processes videos to extract and catalog faces using **DeepFace**, **TensorFlow**, and machine learning clustering. Supports multiple video platforms including **YouTube**, **Instagram**, **TikTok**, and direct uploads.
 
 ## Features
 
@@ -14,16 +14,21 @@ A Python web application that processes videos to extract and catalog faces usin
 - **Batch Processing**: Process multiple URLs simultaneously from different platforms
 
 ### 🔍 Face Processing Pipeline
-- **Face Detection**: Extract faces from video frames using DeepFace
-- **Face Recognition**: Generate embeddings for face similarity comparison
-- **Smart Clustering**: Group similar faces across all videos using machine learning
-- **Known Faces Database**: Build a searchable catalog of unique individuals
+- **🤖 Advanced AI Models**: Full DeepFace integration with TensorFlow 2.19.0
+- **🎯 Multiple Detection Backends**: RetinaFace, MTCNN, OpenCV, SSD, dlib
+- **🧠 Neural Network Models**: VGG-Face, Facenet, OpenFace, DeepFace, ArcFace
+- **📐 High-Quality Embeddings**: Generate 128/512-dimensional face embeddings
+- **🔗 Smart Clustering**: Group similar faces using DBSCAN and Agglomerative clustering
+- **⚡ Confidence Scoring**: Quality assessment for each detected face
+- **🛡️ Fallback Support**: Basic OpenCV detection when DeepFace unavailable
 
 ### 🌐 Web Interface
-- **Dashboard**: Overview of processed videos and face clusters
-- **Upload Interface**: Drag-and-drop file upload and URL input
-- **Face Gallery**: Browse discovered faces organized by clusters
-- **Real-time Processing**: Live updates on video processing status
+- **📊 Modern Dashboard**: Clean, responsive interface built with Bootstrap
+- **📤 Upload Interface**: Drag-and-drop file upload and URL input with platform detection
+- **🖼️ Face Gallery**: Browse discovered faces organized by clusters with confidence scores
+- **⏱️ Real-time Processing**: Live updates on video processing status and progress
+- **📱 Mobile Responsive**: Works seamlessly on desktop and mobile devices
+- **🏷️ Platform Badges**: Visual indicators for Instagram, TikTok, YouTube sources
 
 ## Quick Start
 
@@ -39,6 +44,8 @@ source venv/bin/activate
 ```
 
 With **Python 3.13**, the app runs with **basic OpenCV face detection** (DeepFace/TensorFlow not yet compatible).
+
+**✅ Successfully tested with Python 3.12 + DeepFace + TensorFlow 2.19.0**
 
 ```bash
 # Clone and setup
@@ -209,21 +216,51 @@ pip install opencv-python-headless
 - `dbscan`: Good for unknown number of clusters
 - `agglomerative`: More deterministic, requires cluster count estimation
 
-## Development
+## Technical Architecture
 
-### Project Structure
+### 🏗️ Core Components
+
+**Python Environment Management:**
+- **Python 3.12**: Full DeepFace + TensorFlow integration
+- **Python 3.13**: Fallback to OpenCV-only mode
+- **uv**: Modern Python package and environment manager
+
+**AI/ML Stack:**
+- **TensorFlow 2.19.0**: Deep learning framework
+- **DeepFace 0.0.93**: Face recognition library  
+- **tf-keras**: Compatibility layer for TensorFlow
+- **Multiple models**: VGG-Face (580MB), Facenet, OpenFace, ArcFace
+
+**Face Detection Backends:**
+- **RetinaFace**: Highest accuracy, production-ready
+- **MTCNN**: Multi-task CNN, good balance
+- **OpenCV**: Fastest, basic detection
+- **SSD**: Single Shot Detector
+- **dlib**: Traditional computer vision
+
+### 🗂️ Project Structure
 ```
 faaaaaces/
 ├── app/
-│   ├── models/          # Database models
-│   ├── services/        # Core processing services
-│   ├── routes/          # Web routes and API
-│   └── templates/       # HTML templates
-├── uploads/             # Uploaded videos
-├── faces/               # Extracted face images
-├── temp/                # Temporary files
-└── run.py              # Application entry point
+│   ├── models/                  # Database models and schema
+│   ├── services/               # Core processing services
+│   │   ├── face_extractor.py           # DeepFace integration
+│   │   ├── face_extractor_basic.py     # OpenCV fallback
+│   │   ├── video_downloader.py         # Multi-platform downloader
+│   │   ├── video_processor.py          # Frame extraction
+│   │   └── face_clustering.py          # ML clustering
+│   ├── routes/                 # Web routes and API endpoints
+│   └── templates/              # Responsive HTML templates
+├── uploads/                    # User-uploaded videos
+├── faces/                      # Extracted face images
+├── temp/                       # Temporary video downloads
+├── .venv/                      # Python 3.12 virtual environment
+├── start_server.sh             # Production server startup
+├── stop_server.sh              # Server management
+└── requirements.txt            # Secure dependency versions
 ```
+
+## Development
 
 ### Adding New Features
 
