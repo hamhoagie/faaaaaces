@@ -24,7 +24,7 @@ celery==5.3.4
 redis==5.0.1
 
 # Utilities
-requests==2.31.0
+requests==2.32.4
 python-dotenv==1.0.0
 click==8.1.7
 tqdm==4.66.1
