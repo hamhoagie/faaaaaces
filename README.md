@@ -29,10 +29,25 @@ A Python web application that processes videos to extract and catalog faces usin
 
 ### 1. Installation
 
+**⚠️ Python Version Requirement for Full Features**
+
+For **full DeepFace integration**, use **Python 3.12 or earlier**:
+```bash
+# Recommended: Python 3.12
+python3.12 -m venv venv
+source venv/bin/activate
+```
+
+With **Python 3.13**, the app runs with **basic OpenCV face detection** (DeepFace/TensorFlow not yet compatible).
+
 ```bash
 # Clone and setup
 git clone <repository-url>
 cd faaaaaces
+
+# Create virtual environment (Python 3.12 recommended for DeepFace)
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install Python dependencies
 pip install -r requirements.txt

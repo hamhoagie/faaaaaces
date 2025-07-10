@@ -1,10 +1,15 @@
+# IMPORTANT: DeepFace requires Python 3.12 or earlier due to TensorFlow compatibility
+# Current environment uses Python 3.13, so DeepFace will fall back to basic OpenCV detection
+
 # Core web framework
 flask>=3.1.0
 flask-cors>=5.0.0
 
 # Face recognition and computer vision
-deepface>=0.0.95
-opencv-python>=4.10.0
+# NOTE: DeepFace and TensorFlow will only install with Python 3.12 or earlier
+deepface>=0.0.95  # Requires tensorflow>=1.9.0 (not available for Python 3.13)
+tensorflow>=2.15.0  # Not available for Python 3.13 yet
+opencv-python>=4.10.0  # Works with all Python versions
 pillow>=11.0.0
 
 # Video processing and downloading

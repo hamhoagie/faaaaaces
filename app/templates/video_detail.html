@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}Video Details - FAAAAACES{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('main.videos_page') }}">Videos</a></li>
+                <li class="breadcrumb-item active">{{ video.filename }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Video Information -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-video"></i> Video Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Filename:</strong></div>
+                    <div class="col-sm-8">{{ video.filename }}</div>
+                </div>
+                
+                {% if video.source_url %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Source URL:</strong></div>
+                    <div class="col-sm-8">
+                        <a href="{{ video.source_url }}" target="_blank" class="text-break">
+                            {{ video.source_url }}
+                            <i class="fas fa-external-link-alt fa-sm"></i>
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Status:</strong></div>
+                    <div class="col-sm-8">
+                        {% if video.status == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
+                        {% elif video.status == 'processing' %}
+                            <span class="badge bg-primary">Processing</span>
+                        {% elif video.status == 'failed' %}
+                            <span class="badge bg-danger">Failed</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ video.status|title }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if video.duration_seconds %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Duration:</strong></div>
+                    <div class="col-sm-8">{{ "%.1f"|format(video.duration_seconds) }} seconds</div>
+                </div>
+                {% endif %}
+                
+                {% if video.width and video.height %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Resolution:</strong></div>
+                    <div class="col-sm-8">{{ video.width }} × {{ video.height }}</div>
+                </div>
+                {% endif %}
+                
+                {% if video.fps %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>FPS:</strong></div>
+                    <div class="col-sm-8">{{ "%.1f"|format(video.fps) }}</div>
+                </div>
+                {% endif %}
+                
+                {% if video.file_size_bytes %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>File Size:</strong></div>
+                    <div class="col-sm-8">{{ (video.file_size_bytes / 1024 / 1024)|round(1) }} MB</div>
+                </div>
+                {% endif %}
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Created:</strong></div>
+                    <div class="col-sm-8">{{ video.created_at }}</div>
+                </div>
+                
+                {% if video.error_message %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Error:</strong></div>
+                    <div class="col-sm-8">
+                        <div class="alert alert-danger">
+                            {{ video.error_message }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Face Statistics -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-user-friends"></i> Face Detection Results</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-6"><strong>Total Faces Found:</strong></div>
+                    <div class="col-sm-6">
+                        <span class="badge bg-info fs-6">{{ faces|length }}</span>
+                    </div>
+                </div>
+                
+                {% if faces %}
+                <div class="row mb-3">
+                    <div class="col-sm-6"><strong>Unique Faces:</strong></div>
+                    <div class="col-sm-6">
+                        <span class="badge bg-success fs-6">{{ faces|selectattr('face_cluster_id')|list|length }}</span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-6"><strong>Average Confidence:</strong></div>
+                    <div class="col-sm-6">
+                        {% set avg_conf = (faces|sum(attribute='confidence') / faces|length) %}
+                        <span class="badge bg-{% if avg_conf > 0.8 %}success{% elif avg_conf > 0.6 %}warning{% else %}danger{% endif %} fs-6">
+                            {{ "%.1f"|format(avg_conf * 100) }}%
+                        </span>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if video.status == 'processing' %}
+                <div class="alert alert-info">
+                    <i class="fas fa-spinner fa-spin"></i> Face detection is still in progress...
+                </div>
+                {% elif video.status == 'failed' %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Face detection failed. Check the error message above.
+                </div>
+                {% elif not faces %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle"></i> No faces were detected in this video.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-tools"></i> Actions</h6>
+            </div>
+            <div class="card-body">
+                {% if video.status == 'completed' and faces %}
+                <button class="btn btn-primary btn-sm" onclick="reprocessVideo({{ video.id }})">
+                    <i class="fas fa-redo"></i> Reprocess Video
+                </button>
+                {% endif %}
+                
+                {% if video.status == 'failed' %}
+                <button class="btn btn-warning btn-sm" onclick="retryVideo({{ video.id }})">
+                    <i class="fas fa-retry"></i> Retry Processing
+                </button>
+                {% endif %}
+                
+                <button class="btn btn-danger btn-sm" onclick="deleteVideo({{ video.id }})">
+                    <i class="fas fa-trash"></i> Delete Video
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if faces %}
+<!-- Detected Faces -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-users"></i> Detected Faces ({{ faces|length }})</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="toggleView()">
+                        <i class="fas fa-th" id="viewIcon"></i> <span id="viewText">Grid View</span>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="facesGrid" class="row">
+                    {% for face in faces %}
+                    <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
+                        <div class="card h-100">
+                            {% if face.face_image_path %}
+                            <img src="{{ url_for('static', filename='faces/' + face.face_image_path.split('/')[-1]) }}" 
+                                 class="card-img-top" style="height: 150px; object-fit: cover;" 
+                                 alt="Face {{ loop.index }}">
+                            {% else %}
+                            <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
+                                 style="height: 150px;">
+                                <i class="fas fa-user-circle fa-3x text-muted"></i>
+                            </div>
+                            {% endif %}
+                            <div class="card-body p-2">
+                                <small class="text-muted">
+                                    <div><strong>Time:</strong> {{ "%.1f"|format(face.frame_timestamp) }}s</div>
+                                    <div><strong>Confidence:</strong> {{ "%.1f"|format(face.confidence * 100) }}%</div>
+                                    {% if face.face_cluster_id %}
+                                    <div><strong>Cluster:</strong> 
+                                        <a href="{{ url_for('main.cluster_detail', cluster_id=face.face_cluster_id) }}" 
+                                           class="badge bg-secondary text-decoration-none">
+                                            #{{ face.face_cluster_id }}
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div id="facesList" class="d-none">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Face</th>
+                                    <th>Timestamp</th>
+                                    <th>Confidence</th>
+                                    <th>Cluster</th>
+                                    <th>Bounding Box</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for face in faces %}
+                                <tr>
+                                    <td>
+                                        {% if face.face_image_path %}
+                                        <img src="{{ url_for('static', filename='faces/' + face.face_image_path.split('/')[-1]) }}" 
+                                             class="face-thumbnail" alt="Face {{ loop.index }}">
+                                        {% else %}
+                                        <i class="fas fa-user-circle fa-2x text-muted"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "%.1f"|format(face.frame_timestamp) }}s</td>
+                                    <td>
+                                        <span class="badge bg-{% if face.confidence > 0.8 %}success{% elif face.confidence > 0.6 %}warning{% else %}danger{% endif %}">
+                                            {{ "%.1f"|format(face.confidence * 100) }}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if face.face_cluster_id %}
+                                        <a href="{{ url_for('main.cluster_detail', cluster_id=face.face_cluster_id) }}" 
+                                           class="badge bg-secondary text-decoration-none">
+                                            Cluster #{{ face.face_cluster_id }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if face.bbox %}
+                                        <small class="text-muted">{{ face.bbox }}</small>
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+let isGridView = true;
+
+function toggleView() {
+    const grid = document.getElementById('facesGrid');
+    const list = document.getElementById('facesList');
+    const icon = document.getElementById('viewIcon');
+    const text = document.getElementById('viewText');
+    
+    if (isGridView) {
+        grid.classList.add('d-none');
+        list.classList.remove('d-none');
+        icon.className = 'fas fa-list';
+        text.textContent = 'List View';
+        isGridView = false;
+    } else {
+        grid.classList.remove('d-none');
+        list.classList.add('d-none');
+        icon.className = 'fas fa-th';
+        text.textContent = 'Grid View';
+        isGridView = true;
+    }
+}
+
+function reprocessVideo(videoId) {
+    if (confirm('This will reprocess the video and may overwrite existing face data. Continue?')) {
+        fetch(`/api/reprocess_video/${videoId}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('Video reprocessing started!');
+                    location.reload();
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+    }
+}
+
+function retryVideo(videoId) {
+    if (confirm('This will retry processing the video. Continue?')) {
+        fetch(`/api/retry_video/${videoId}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('Video processing restarted!');
+                    location.reload();
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+    }
+}
+
+function deleteVideo(videoId) {
+    if (confirm('This will permanently delete the video and all associated face data. This cannot be undone. Continue?')) {
+        fetch(`/api/delete_video/${videoId}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('Video deleted successfully!');
+                    window.location.href = '{{ url_for("main.videos_page") }}';
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+    }
+}
+</script>
+{% endblock %}
