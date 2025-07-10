@@ -8,7 +8,7 @@ opencv-python==4.8.1.78
 pillow==10.1.0
 
 # Video processing and downloading
-yt-dlp==2023.12.30
+yt-dlp==2024.7.7
 moviepy==1.0.3
 
 # Machine learning and clustering
