@@ -351,3 +351,79 @@ def process_video_async(video_id: int, video_path: str):
     except Exception as e:
         VideoModel.update_status(video_id, 'failed', str(e))
         print(f"Error processing video {video_id}: {e}")
+
+@api_bp.route('/retry_video/<int:video_id>', methods=['POST'])
+def retry_video(video_id):
+    """Retry processing a failed video"""
+    try:
+        video = VideoModel.get_by_id(video_id)
+        if not video:
+            return jsonify({'error': 'Video not found'}), 404
+        
+        if video['status'] != 'failed':
+            return jsonify({'error': 'Video is not in failed state'}), 400
+        
+        # Reset video status to pending
+        VideoModel.update_status(video_id, 'pending')
+        
+        # Clear any existing faces from this video
+        FaceModel.delete_by_video(video_id)
+        
+        # If this was a URL-based video, we need to reprocess it
+        if video['source_url']:
+            # Download and reprocess the URL
+            import threading
+            def process_video():
+                try:
+                    # Download the video again
+                    video_path = video_downloader.download(video['source_url'])
+                    if video_path:
+                        process_video_async(video_id, video_path)
+                    else:
+                        VideoModel.update_status(video_id, 'failed', 'Failed to download video')
+                except Exception as e:
+                    VideoModel.update_status(video_id, 'failed', str(e))
+            
+            thread = threading.Thread(target=process_video)
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({
+                'message': 'Video retry started',
+                'video_id': video_id,
+                'status': 'pending'
+            })
+        else:
+            # For uploaded videos, we'd need the original file which might not exist
+            return jsonify({'error': 'Cannot retry uploaded video - original file not available'}), 400
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/delete_video/<int:video_id>', methods=['DELETE'])
+def delete_video(video_id):
+    """Delete a video and all associated data"""
+    try:
+        video = VideoModel.get_by_id(video_id)
+        if not video:
+            return jsonify({'error': 'Video not found'}), 404
+        
+        # Delete associated faces
+        FaceModel.delete_by_video(video_id)
+        
+        # Delete face image files
+        faces_dir = os.path.join(current_app.config['FACES_FOLDER'], str(video_id))
+        if os.path.exists(faces_dir):
+            import shutil
+            shutil.rmtree(faces_dir)
+        
+        # Delete video record
+        VideoModel.delete(video_id)
+        
+        return jsonify({
+            'message': 'Video deleted successfully',
+            'video_id': video_id
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

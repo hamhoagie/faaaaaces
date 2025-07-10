@@ -149,6 +149,14 @@ class VideoModel:
             ''', (status, error_message, video_id))
         conn.commit()
         conn.close()
+    
+    @staticmethod
+    def delete(video_id: int):
+        """Delete a video record"""
+        conn = get_db_connection()
+        conn.execute('DELETE FROM videos WHERE id = ?', (video_id,))
+        conn.commit()
+        conn.close()
 
 class FaceModel:
     @staticmethod
@@ -199,6 +207,14 @@ class FaceModel:
         """Assign face to a cluster"""
         conn = get_db_connection()
         conn.execute('UPDATE faces SET face_cluster_id = ? WHERE id = ?', (cluster_id, face_id))
+        conn.commit()
+        conn.close()
+    
+    @staticmethod
+    def delete_by_video(video_id: int):
+        """Delete all faces associated with a video"""
+        conn = get_db_connection()
+        conn.execute('DELETE FROM faces WHERE video_id = ?', (video_id,))
         conn.commit()
         conn.close()
 

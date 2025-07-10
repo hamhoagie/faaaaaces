@@ -1,8 +1,9 @@
 """
 Main web interface routes
 """
-from flask import Blueprint, render_template, request, jsonify, current_app
+from flask import Blueprint, render_template, request, jsonify, current_app, send_from_directory
 from app.models.database import VideoModel, FaceClusterModel, ProcessingJobModel
+import os
 
 main_bp = Blueprint('main', __name__)
 
@@ -53,3 +54,15 @@ def cluster_detail(cluster_id):
     """Individual cluster detail page"""
     # Implementation would show all faces in a cluster
     return render_template('cluster_detail.html', cluster_id=cluster_id)
+
+@main_bp.route('/faces/<path:filename>')
+def serve_face_image(filename):
+    """Serve face images from the faces directory"""
+    # The filename already includes the relative path from project root
+    # e.g., filename = "1/video_1_frame_30.00s_face_0.jpg"
+    # So we serve from the project root directory
+    project_root = os.path.dirname(current_app.root_path)
+    faces_dir = os.path.join(project_root, 'faces')
+    full_path = os.path.join(faces_dir, filename)
+    print(f"DEBUG: Trying to serve face image - filename: {filename}, faces_dir: {faces_dir}, full_path: {full_path}, exists: {os.path.exists(full_path)}")
+    return send_from_directory(faces_dir, filename)

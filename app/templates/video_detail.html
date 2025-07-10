@@ -196,7 +196,7 @@
                     <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
                         <div class="card h-100">
                             {% if face.face_image_path %}
-                            <img src="{{ url_for('static', filename='faces/' + face.face_image_path.split('/')[-1]) }}" 
+                            <img src="{{ url_for('main.serve_face_image', filename=face.face_image_path.replace('faces/', '')) }}" 
                                  class="card-img-top" style="height: 150px; object-fit: cover;" 
                                  alt="Face {{ loop.index }}">
                             {% else %}
@@ -241,7 +241,7 @@
                                 <tr>
                                     <td>
                                         {% if face.face_image_path %}
-                                        <img src="{{ url_for('static', filename='faces/' + face.face_image_path.split('/')[-1]) }}" 
+                                        <img src="{{ url_for('main.serve_face_image', filename=face.face_image_path.replace('faces/', '')) }}" 
                                              class="face-thumbnail" alt="Face {{ loop.index }}">
                                         {% else %}
                                         <i class="fas fa-user-circle fa-2x text-muted"></i>
