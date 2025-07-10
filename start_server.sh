@@ -2,8 +2,8 @@
 
 echo "🚀 Starting FAAAAACES Server..."
 
-# Activate virtual environment
-source venv/bin/activate
+# Activate virtual environment (Python 3.12 with DeepFace support)
+source .venv/bin/activate
 
 # Set environment variables
 export FLASK_ENV=development
