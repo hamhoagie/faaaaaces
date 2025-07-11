@@ -228,9 +228,19 @@ async function startDetection() {
         let response;
         
         if (detectionMode === 'full') {
-            updateProgress('detection', 30, 'Analyzing full video...');
-            response = await fetch(`/api/enhanced/enhanced_detect_masks/${selectedVideo.id}`, {
-                method: 'POST'
+            updateProgress('detection', 30, 'Analyzing full video with improved detection...');
+            
+            // Get confidence threshold from UI (add a slider or use default)
+            const minConfidence = document.getElementById('confidence-threshold')?.value || 0.7;
+            
+            response = await fetch(`/api/masks/detect_masks_improved/${selectedVideo.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    min_confidence: parseFloat(minConfidence) 
+                })
             });
         } else {
             const timestamps = getTimestamps();
@@ -315,18 +325,52 @@ function addTimestamp() {
 }
 
 function proceedToStep3() {
-    // Update detection results
-    document.getElementById('total-faces-count').textContent = detectionResults.total_faces || 0;
-    document.getElementById('masked-faces-count').textContent = detectionResults.masked_faces || 0;
-    document.getElementById('unmasked-faces-count').textContent = detectionResults.unmasked_faces || 0;
+    // Update detection results - handle both old and new API response formats
+    const totalFaces = detectionResults.total_faces || 0;
+    const maskedFaces = detectionResults.masked_faces || 0;
+    const unmaskedFaces = detectionResults.unmasked_faces || 0;
     
-    const maskRate = detectionResults.total_faces > 0 
-        ? Math.round((detectionResults.masked_faces / detectionResults.total_faces) * 100)
+    document.getElementById('total-faces-count').textContent = totalFaces;
+    document.getElementById('masked-faces-count').textContent = maskedFaces;
+    document.getElementById('unmasked-faces-count').textContent = unmaskedFaces;
+    
+    const maskRate = totalFaces > 0 
+        ? Math.round((maskedFaces / totalFaces) * 100)
         : 0;
     document.getElementById('mask-detection-rate').textContent = maskRate + '%';
     
-    // Display faces
-    displayFaces(detectionResults.results || []);
+    // Display confidence information if available
+    if (detectionResults.confidence_distribution) {
+        const confDist = detectionResults.confidence_distribution;
+        const confInfo = `High: ${confDist.high}, Medium: ${confDist.medium}, Low: ${confDist.low}`;
+        
+        // Add confidence distribution info to UI
+        let confElement = document.getElementById('confidence-distribution');
+        if (!confElement) {
+            confElement = document.createElement('div');
+            confElement.id = 'confidence-distribution';
+            confElement.className = 'mt-2 text-muted small';
+            document.getElementById('detection-results').querySelector('.card-body').appendChild(confElement);
+        }
+        confElement.innerHTML = `<strong>Confidence Distribution:</strong> ${confInfo}`;
+    }
+    
+    // Display method information
+    if (detectionResults.method || detectionResults.min_confidence_threshold) {
+        let methodElement = document.getElementById('detection-method-info');
+        if (!methodElement) {
+            methodElement = document.createElement('div');
+            methodElement.id = 'detection-method-info';
+            methodElement.className = 'mt-2 text-info small';
+            document.getElementById('detection-results').querySelector('.card-body').appendChild(methodElement);
+        }
+        const threshold = detectionResults.min_confidence_threshold || 'default';
+        methodElement.innerHTML = `<i class="fas fa-info-circle"></i> Using improved detection (min confidence: ${threshold})`;
+    }
+    
+    // Display faces - handle new API format
+    const facesToDisplay = detectionResults.masked_faces_data || detectionResults.results || [];
+    displayFaces(facesToDisplay);
     
     // Show results
     document.getElementById('detection-results').style.display = 'block';
@@ -742,6 +786,24 @@ function showAlert(message, type = 'info') {
             alert.remove();
         }
     }, 5000);
+}
+
+function updateConfidenceDisplay(value) {
+    const display = document.getElementById('confidence-display');
+    const description = document.getElementById('confidence-description');
+    
+    display.textContent = value;
+    
+    // Update description based on threshold
+    if (value >= 0.8) {
+        description.textContent = 'High precision (fewer detections)';
+    } else if (value >= 0.7) {
+        description.textContent = 'Balanced accuracy';
+    } else if (value >= 0.6) {
+        description.textContent = 'Higher sensitivity';
+    } else {
+        description.textContent = 'Maximum sensitivity (more false positives)';
+    }
 }
 
 function handleUrlParameters() {
