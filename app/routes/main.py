@@ -72,6 +72,40 @@ def masked_faces_gallery():
     """Masked faces gallery page"""
     return render_template('masked_faces_gallery.html')
 
+@main_bp.route('/status')
+def status():
+    """System status endpoint"""
+    try:
+        # Test imports
+        import cv2
+        opencv_version = cv2.__version__
+        opencv_status = "✅ Available"
+    except:
+        opencv_version = "Not installed"
+        opencv_status = "❌ Missing"
+        
+    try:
+        import yt_dlp
+        ytdlp_status = "✅ Available"
+    except:
+        ytdlp_status = "❌ Missing"
+        
+    try:
+        from app.models.database import init_db
+        db_status = "✅ Available"
+    except Exception as e:
+        db_status = f"❌ Error: {str(e)}"
+        
+    return f'''
+    <h2>🔍 FAAAAACES System Status</h2>
+    <ul>
+        <li><strong>OpenCV:</strong> {opencv_status} (v{opencv_version})</li>
+        <li><strong>yt-dlp:</strong> {ytdlp_status}</li>
+        <li><strong>Database:</strong> {db_status}</li>
+    </ul>
+    <p><a href="/">Back to Home</a></p>
+    '''
+
 @main_bp.route('/faces/<path:filename>')
 def serve_face_image(filename):
     """Serve face images from the faces directory"""

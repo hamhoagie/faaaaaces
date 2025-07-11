@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}Face Clusters - FAAAAACES{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-users"></i> Face Clusters
+            </h1>
+            <p class="lead">Groups of similar faces detected across all videos</p>
+        </div>
+    </div>
+
+    {% if clusters %}
+    <div class="row">
+        {% for cluster in clusters %}
+        <div class="col-md-4 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    {% if cluster.representative_image_path %}
+                        <img src="{{ cluster.representative_image_path }}" 
+                             class="img-fluid rounded-circle mb-3" 
+                             style="width: 120px; height: 120px; object-fit: cover;"
+                             alt="Cluster {{ cluster.id }}">
+                    {% else %}
+                        <div class="bg-light rounded-circle mb-3 mx-auto d-flex align-items-center justify-content-center" 
+                             style="width: 120px; height: 120px;">
+                            <i class="fas fa-user fa-3x text-muted"></i>
+                        </div>
+                    {% endif %}
+                    
+                    <h5 class="card-title">
+                        {% if cluster.name %}
+                            {{ cluster.name }}
+                        {% else %}
+                            Cluster #{{ cluster.id }}
+                        {% endif %}
+                    </h5>
+                    
+                    <p class="card-text">
+                        <span class="badge bg-primary">{{ cluster.actual_face_count }} faces</span>
+                    </p>
+                    
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('main.cluster_detail', cluster_id=cluster.id) }}" 
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        <button class="btn btn-outline-secondary btn-sm" 
+                                onclick="editCluster({{ cluster.id }})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination (if needed) -->
+    {% if clusters|length > 20 %}
+    <nav aria-label="Clusters pagination">
+        <ul class="pagination justify-content-center">
+            <li class="page-item">
+                <a class="page-link" href="#" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+            <li class="page-item"><a class="page-link" href="#">2</a></li>
+            <li class="page-item"><a class="page-link" href="#">3</a></li>
+            <li class="page-item">
+                <a class="page-link" href="#" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h4>No Face Clusters Found</h4>
+                <p>No face clusters have been created yet. Upload and process some videos to start clustering faces.</p>
+                <a href="{{ url_for('main.upload_page') }}" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Upload Videos
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Edit Cluster Modal -->
+<div class="modal fade" id="editClusterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Cluster</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editClusterForm">
+                    <div class="mb-3">
+                        <label for="clusterName" class="form-label">Cluster Name</label>
+                        <input type="text" class="form-control" id="clusterName" 
+                               placeholder="Enter a name for this person/cluster">
+                    </div>
+                    <div class="mb-3">
+                        <label for="clusterNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="clusterNotes" rows="3" 
+                                  placeholder="Add notes about this cluster"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveCluster()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentClusterId = null;
+
+function editCluster(clusterId) {
+    currentClusterId = clusterId;
+    
+    // Load cluster data (you'd fetch this from an API)
+    fetch(`/api/cluster_info/${clusterId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('clusterName').value = data.name || '';
+            document.getElementById('clusterNotes').value = data.notes || '';
+        })
+        .catch(error => {
+            console.error('Error loading cluster:', error);
+            document.getElementById('clusterName').value = '';
+            document.getElementById('clusterNotes').value = '';
+        });
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('editClusterModal')).show();
+}
+
+function saveCluster() {
+    const name = document.getElementById('clusterName').value;
+    const notes = document.getElementById('clusterNotes').value;
+    
+    // Save cluster data (you'd send this to an API)
+    fetch(`/api/update_cluster/${currentClusterId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            name: name,
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Hide modal and reload page
+            bootstrap.Modal.getInstance(document.getElementById('editClusterModal')).hide();
+            location.reload();
+        } else {
+            alert('Error saving cluster: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving cluster:', error);
+        alert('Error saving cluster');
+    });
+}
+</script>
+{% endblock %}
