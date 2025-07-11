@@ -375,12 +375,13 @@ def retry_video(video_id):
             import threading
             def process_video():
                 try:
-                    # Download the video again
-                    video_path = video_downloader.download(video['source_url'])
-                    if video_path:
-                        process_video_async(video_id, video_path)
-                    else:
-                        VideoModel.update_status(video_id, 'failed', 'Failed to download video')
+                    with current_app.app_context():
+                        # Download the video again
+                        success, video_path, video_info, error_message = video_downloader.download_from_url(video['source_url'])
+                        if success and video_path:
+                            process_video_async(video_id, video_path)
+                        else:
+                            VideoModel.update_status(video_id, 'failed', error_message or 'Failed to download video')
                 except Exception as e:
                     VideoModel.update_status(video_id, 'failed', str(e))
             

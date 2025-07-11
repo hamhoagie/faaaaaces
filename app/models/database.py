@@ -217,6 +217,14 @@ class FaceModel:
         conn.execute('DELETE FROM faces WHERE video_id = ?', (video_id,))
         conn.commit()
         conn.close()
+    
+    @staticmethod
+    def get_total_count() -> int:
+        """Get total number of faces across all videos"""
+        conn = get_db_connection()
+        result = conn.execute('SELECT COUNT(*) FROM faces').fetchone()
+        conn.close()
+        return result[0]
 
 class FaceClusterModel:
     @staticmethod

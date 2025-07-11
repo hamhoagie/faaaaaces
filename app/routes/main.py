@@ -2,7 +2,7 @@
 Main web interface routes
 """
 from flask import Blueprint, render_template, request, jsonify, current_app, send_from_directory
-from app.models.database import VideoModel, FaceClusterModel, ProcessingJobModel
+from app.models.database import VideoModel, FaceClusterModel, ProcessingJobModel, FaceModel
 import os
 
 main_bp = Blueprint('main', __name__)
@@ -14,11 +14,13 @@ def index():
     videos = VideoModel.get_all()[:10]  # Last 10 videos
     clusters = FaceClusterModel.get_all_with_faces()[:20]  # Top 20 clusters
     active_jobs = ProcessingJobModel.get_active_jobs()
+    total_faces = FaceModel.get_total_count()
     
     return render_template('index.html', 
                          videos=videos, 
                          clusters=clusters,
-                         active_jobs=active_jobs)
+                         active_jobs=active_jobs,
+                         total_faces=total_faces)
 
 @main_bp.route('/upload')
 def upload_page():

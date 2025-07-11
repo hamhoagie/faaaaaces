@@ -63,7 +63,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4>{% set total_faces = clusters|map(attribute='actual_face_count')|sum %}{{ total_faces }}</h4>
+                        <h4>{{ total_faces }}</h4>
                         <p class="mb-0">Total Faces</p>
                     </div>
                     <div class="align-self-center">
