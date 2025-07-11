@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeWorkflow();
     setupEventListeners();
     loadExistingVideos();
+    handleUrlParameters();
 });
 
 function initializeWorkflow() {
@@ -741,4 +742,30 @@ function showAlert(message, type = 'info') {
             alert.remove();
         }
     }, 5000);
+}
+
+function handleUrlParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const videoId = urlParams.get('video_id');
+    const faceId = urlParams.get('face_id');
+    
+    if (videoId) {
+        // Wait for videos to load, then select the video
+        setTimeout(() => {
+            const videoSelect = document.getElementById('video-select');
+            if (videoSelect) {
+                videoSelect.value = videoId;
+                
+                // Automatically select the video and proceed to next step
+                selectExistingVideo();
+                
+                // Show alert about pre-selection
+                let message = `Video #${videoId} pre-selected from previous page`;
+                if (faceId) {
+                    message += ` (targeting face #${faceId})`;
+                }
+                showAlert(message, 'info');
+            }
+        }, 1500); // Wait 1.5 seconds for videos to load
+    }
 }
