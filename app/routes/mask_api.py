@@ -92,6 +92,105 @@ def detect_masks_in_video(video_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@mask_api_bp.route('/detect_masks_improved/<int:video_id>', methods=['POST'])
+def detect_masks_improved(video_id):
+    """Detect masks using improved algorithm with confidence filtering"""
+    try:
+        min_confidence = request.json.get('min_confidence', 0.7) if request.json else 0.7
+        
+        video = VideoModel.get_by_id(video_id)
+        if not video:
+            return jsonify({'error': 'Video not found'}), 404
+        
+        # Get all faces for the video
+        faces = FaceModel.get_by_video(video_id)
+        if not faces:
+            return jsonify({'error': 'No faces found for this video'}), 404
+        
+        # Reprocess with improved detection
+        processing_results = mask_detector.reprocess_all_faces(faces, min_confidence)
+        
+        return jsonify({
+            'video_id': video_id,
+            'min_confidence_threshold': min_confidence,
+            'total_faces': processing_results['total_faces'],
+            'masked_faces': len(processing_results['masked_faces']),
+            'unmasked_faces': len(processing_results['unmasked_faces']),
+            'processing_errors': len(processing_results['processing_errors']),
+            'confidence_distribution': processing_results['confidence_distribution'],
+            'masked_faces_data': processing_results['masked_faces'],
+            'errors': processing_results['processing_errors']
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@mask_api_bp.route('/compare_detection_methods/<int:video_id>', methods=['POST'])
+def compare_detection_methods(video_id):
+    """Compare old vs new mask detection methods"""
+    try:
+        min_confidence = request.json.get('min_confidence', 0.7) if request.json else 0.7
+        
+        video = VideoModel.get_by_id(video_id)
+        if not video:
+            return jsonify({'error': 'Video not found'}), 404
+        
+        faces = FaceModel.get_by_video(video_id)
+        if not faces:
+            return jsonify({'error': 'No faces found for this video'}), 404
+        
+        comparison_results = []
+        
+        for face in faces[:10]:  # Limit to first 10 faces for testing
+            face_image_path = face['face_image_path']
+            if os.path.exists(face_image_path):
+                import cv2
+                face_image = cv2.imread(face_image_path)
+                if face_image is not None:
+                    # Old method (basic CV)
+                    old_result = mask_detector.detect_mask_cv(face_image)
+                    
+                    # New method (improved with confidence filtering)
+                    new_result = mask_detector.detect_mask(face_image, min_confidence)
+                    
+                    comparison_results.append({
+                        'face_id': face['id'],
+                        'face_image_path': face_image_path,
+                        'old_method': {
+                            'is_masked': old_result[0],
+                            'confidence': old_result[1],
+                            'method': 'basic_cv'
+                        },
+                        'new_method': {
+                            'is_masked': new_result['is_masked'],
+                            'confidence': new_result['confidence'],
+                            'method': new_result['method'],
+                            'detection_details': new_result['detection_details']
+                        },
+                        'changed': old_result[0] != new_result['is_masked']
+                    })
+        
+        # Calculate summary statistics
+        changed_count = sum(1 for r in comparison_results if r['changed'])
+        old_masked_count = sum(1 for r in comparison_results if r['old_method']['is_masked'])
+        new_masked_count = sum(1 for r in comparison_results if r['new_method']['is_masked'])
+        
+        return jsonify({
+            'video_id': video_id,
+            'faces_compared': len(comparison_results),
+            'min_confidence_threshold': min_confidence,
+            'summary': {
+                'faces_with_changed_detection': changed_count,
+                'old_method_masked_count': old_masked_count,
+                'new_method_masked_count': new_masked_count,
+                'reduction_in_false_positives': max(0, old_masked_count - new_masked_count)
+            },
+            'detailed_results': comparison_results
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @mask_api_bp.route('/reconstruct_faces/<int:video_id>', methods=['POST'])
 def reconstruct_faces_in_video(video_id):
     """Reconstruct masked faces in a specific video"""
