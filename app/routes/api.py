@@ -230,6 +230,34 @@ def get_job_status(job_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/videos_list', methods=['GET'])
+def get_videos_list():
+    """Get list of videos in JSON format for frontend"""
+    try:
+        videos = VideoModel.get_all()
+        video_list = []
+        
+        for video in videos:
+            video_data = {
+                'id': video['id'],
+                'filename': video['filename'],
+                'source_url': video['source_url'],
+                'source_type': video['source_type'],
+                'duration_seconds': video['duration_seconds'],
+                'status': video['status'],
+                'created_at': video['created_at'],
+                'processed_at': video['processed_at']
+            }
+            video_list.append(video_data)
+        
+        return jsonify({
+            'videos': video_list,
+            'total': len(video_list)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/video_info/<int:video_id>')
 def get_video_info(video_id):
     """Get video information and processing status"""

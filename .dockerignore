@@ -1,0 +1,64 @@
+# FAAAAACES Docker ignore file
+
+# Virtual environments
+.venv/
+venv/
+venv_backup_*/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Development files
+.git/
+.gitignore
+*.md
+!README.md
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+server.pid
+
+# Test files
+test_*.py
+tests/
+debug_*.py
+debug_*.jpg
+
+# Temporary files
+temp/
+*.tmp
+
+# Database files (will be mounted as volume)
+*.db
+*.sqlite
+
+# Large model files (will be downloaded in container)
+*.pt
+*.pth
+*.onnx
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Coverage reports
+htmlcov/
+.coverage
+.pytest_cache/

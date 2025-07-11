@@ -1,0 +1,27 @@
+# Additional requirements for mask detection and face reconstruction
+# Install these for advanced mask processing capabilities
+
+# Face Reconstruction Models
+gfpgan>=1.3.8          # GFPGAN for face restoration and enhancement
+basicsr>=1.4.2         # BasicSR framework for image restoration
+facexlib>=0.3.0        # Face analysis and processing library
+realesrgan>=0.3.0      # Real-ESRGAN for super-resolution
+
+# Image Processing and Quality Metrics
+scikit-image>=0.21.0   # Image processing and SSIM calculations
+opencv-python>=4.8.0   # Computer vision (already included in main requirements)
+
+# Optional: Advanced Models (Uncomment if needed)
+# codeformer            # CodeFormer for robust face restoration
+# lama-cleaner          # LaMa for advanced inpainting
+
+# GPU Acceleration (Optional - install manually)
+# torch>=2.0.0          # PyTorch with CUDA support
+# torchvision>=0.15.0   # PyTorch vision utilities
+
+# Installation Notes:
+# 1. For CPU-only usage: pip install -r requirements-mask-reconstruction.txt
+# 2. For GPU acceleration (recommended):
+#    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#    pip install -r requirements-mask-reconstruction.txt
+# 3. Some models may require additional downloads on first use

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masked Faces Gallery - FAAAAACES</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .face-card {
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .face-card:hover {
+            border-color: #dc3545;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+            transform: translateY(-2px);
+        }
+        .face-card.selected {
+            border-color: #0d6efd;
+            background-color: #f8f9ff;
+        }
+        .face-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .face-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        .reconstruction-preview {
+            border: 2px solid #198754;
+            border-radius: 8px;
+        }
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .comparison-item {
+            text-align: center;
+        }
+        .comparison-item img {
+            width: 100%;
+            max-width: 250px;
+            height: 250px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+        }
+        .floating-reconstruction-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1050;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            display: none;
+        }
+        .video-section {
+            margin-bottom: 40px;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .stats-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 50px;
+        }
+        .quick-actions {
+            position: sticky;
+            top: 20px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-user-secret"></i> FAAAAACES
+            </a>
+            <div class="navbar-nav me-auto">
+                <a class="nav-link" href="/">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a class="nav-link" href="/videos">
+                    <i class="fas fa-video"></i> Videos
+                </a>
+                <a class="nav-link" href="/mask-operations">
+                    <i class="fas fa-mask"></i> Mask Operations
+                </a>
+                <a class="nav-link active" href="/masked-faces">
+                    <i class="fas fa-user-ninja"></i> Masked Faces
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid py-4">
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <h3 id="total-masked-faces">0</h3>
+                    <p class="mb-0">Total Masked Faces</p>
+                </div>
+                <div class="col-md-3">
+                    <h3 id="videos-with-masks">0</h3>
+                    <p class="mb-0">Videos with Masks</p>
+                </div>
+                <div class="col-md-3">
+                    <h3 id="selected-for-reconstruction">0</h3>
+                    <p class="mb-0">Selected for Reconstruction</p>
+                </div>
+                <div class="col-md-3">
+                    <h3 id="reconstructed-faces">0</h3>
+                    <p class="mb-0">Already Reconstructed</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h5 class="mb-0"><i class="fas fa-layer-group"></i> Masked Faces Gallery</h5>
+                    <small class="text-muted">Click faces to select for reconstruction</small>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="btn-group me-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="selectAllFaces()">
+                            <i class="fas fa-check-square"></i> Select All
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
+                            <i class="fas fa-square"></i> Clear
+                        </button>
+                    </div>
+                    <button id="reconstruct-btn" class="btn btn-success" onclick="startReconstruction()" disabled>
+                        <i class="fas fa-magic"></i> Reconstruct Selected (<span id="selected-count">0</span>)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading masked faces...</p>
+        </div>
+
+        <!-- Faces Gallery -->
+        <div id="faces-gallery">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+
+        <!-- Floating Reconstruction Panel -->
+        <div id="reconstruction-panel" class="floating-reconstruction-panel">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-magic"></i> Face Reconstruction</h6>
+                    <button class="btn btn-sm btn-outline-light" onclick="closeReconstructionPanel()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="reconstruction-content">
+                        <!-- Reconstruction content will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Reconstruction Modal -->
+    <div class="modal fade" id="reconstructionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-magic"></i> Face Reconstruction Options</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Reconstruction Method</label>
+                        <select id="reconstruction-method" class="form-select">
+                            <option value="classical">Classical Inpainting (Fast)</option>
+                            <option value="gfpgan">GFPGAN (High Quality)</option>
+                            <option value="codeformer">CodeFormer (Best Results)</option>
+                        </select>
+                        <div class="form-text">
+                            Classical is fastest but lower quality. GFPGAN and CodeFormer require additional setup.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="save-originals">
+                            <label class="form-check-label" for="save-originals">
+                                Keep original masked images
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Selected:</strong> <span id="modal-selected-count">0</span> faces will be reconstructed.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="executeReconstruction()">
+                        <i class="fas fa-play"></i> Start Reconstruction
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global state
+        let allMaskedFaces = [];
+        let selectedFaces = [];
+        let reconstructionResults = {};
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadMaskedFaces();
+        });
+
+        // Load all masked faces
+        async function loadMaskedFaces() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                
+                const response = await fetch('/api/masked/all_masked_faces');
+                if (!response.ok) {
+                    throw new Error(`Failed to load faces: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                allMaskedFaces = data.all_faces || [];
+                
+                updateStats(data);
+                displayFacesGallery(data.videos || []);
+                
+            } catch (error) {
+                console.error('Error loading masked faces:', error);
+                showAlert('Error loading masked faces. Please check if mask detection has been run.', 'warning');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Update statistics
+        function updateStats(data) {
+            document.getElementById('total-masked-faces').textContent = data.total_faces || 0;
+            document.getElementById('videos-with-masks').textContent = data.videos_count || 0;
+            document.getElementById('selected-for-reconstruction').textContent = selectedFaces.length;
+            document.getElementById('reconstructed-faces').textContent = Object.keys(reconstructionResults).length;
+        }
+
+        // Display faces gallery grouped by video
+        function displayFacesGallery(videos) {
+            const gallery = document.getElementById('faces-gallery');
+            gallery.innerHTML = '';
+
+            if (videos.length === 0) {
+                gallery.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-mask fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Masked Faces Found</h4>
+                        <p class="text-muted">Run mask detection on your videos first to see masked faces here.</p>
+                        <a href="/mask-operations" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Run Mask Detection
+                        </a>
+                    </div>
+                `;
+                return;
+            }
+
+            videos.forEach(video => {
+                const videoSection = document.createElement('div');
+                videoSection.className = 'video-section';
+                
+                videoSection.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5><i class="fas fa-video"></i> Video ${video.video_id} (${video.faces.length} faces)</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="selectVideoFaces(${video.video_id})">
+                                Select All
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="deselectVideoFaces(${video.video_id})">
+                                Deselect All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row" id="video-${video.video_id}-faces">
+                        ${video.faces.map(face => createFaceCard(face)).join('')}
+                    </div>
+                `;
+                
+                gallery.appendChild(videoSection);
+            });
+        }
+
+        // Create face card HTML
+        function createFaceCard(face) {
+            const isSelected = selectedFaces.includes(face.face_id);
+            const isReconstructed = reconstructionResults[face.face_id];
+            
+            return `
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="face-card ${isSelected ? 'selected' : ''}" 
+                         data-face-id="${face.face_id}" 
+                         onclick="toggleFaceSelection('${face.face_id}')">
+                        
+                        <img src="${face.image_path}" 
+                             alt="Masked face" 
+                             class="face-image"
+                             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
+                        
+                        <div class="face-overlay">
+                            ${isSelected ? '<span class="badge bg-primary"><i class="fas fa-check"></i></span>' : ''}
+                            ${isReconstructed ? '<span class="badge bg-success"><i class="fas fa-magic"></i></span>' : ''}
+                        </div>
+                        
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i> ${face.timestamp.toFixed(1)}s
+                                </small>
+                                <small class="text-muted">
+                                    Face ${face.face_index}
+                                </small>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-danger">MASKED</span>
+                                ${isReconstructed ? 
+                                    `<button class="btn btn-sm btn-outline-success" onclick="viewReconstruction('${face.face_id}', event)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>` :
+                                    `<small class="text-muted">${face.directory}</small>`
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Toggle face selection
+        function toggleFaceSelection(faceId) {
+            const index = selectedFaces.indexOf(faceId);
+            if (index > -1) {
+                selectedFaces.splice(index, 1);
+            } else {
+                selectedFaces.push(faceId);
+            }
+            
+            updateSelectionUI();
+            refreshFaceCard(faceId);
+        }
+
+        // Update selection UI
+        function updateSelectionUI() {
+            document.getElementById('selected-count').textContent = selectedFaces.length;
+            document.getElementById('selected-for-reconstruction').textContent = selectedFaces.length;
+            document.getElementById('reconstruct-btn').disabled = selectedFaces.length === 0;
+        }
+
+        // Refresh a single face card
+        function refreshFaceCard(faceId) {
+            const faceCard = document.querySelector(`[data-face-id="${faceId}"]`);
+            if (faceCard) {
+                const isSelected = selectedFaces.includes(faceId);
+                const isReconstructed = reconstructionResults[faceId];
+                
+                faceCard.classList.toggle('selected', isSelected);
+                
+                const overlay = faceCard.querySelector('.face-overlay');
+                const checkBadge = overlay.querySelector('.bg-primary');
+                const reconstructBadge = overlay.querySelector('.bg-success');
+                
+                // Update selection badge
+                if (isSelected && !checkBadge) {
+                    overlay.insertAdjacentHTML('afterbegin', '<span class="badge bg-primary"><i class="fas fa-check"></i></span>');
+                } else if (!isSelected && checkBadge) {
+                    checkBadge.remove();
+                }
+                
+                // Update reconstruction badge
+                if (isReconstructed && !reconstructBadge) {
+                    overlay.insertAdjacentHTML('beforeend', '<span class="badge bg-success"><i class="fas fa-magic"></i></span>');
+                } else if (!isReconstructed && reconstructBadge) {
+                    reconstructBadge.remove();
+                }
+                
+                // Update the button in card body
+                const cardBody = faceCard.querySelector('.card-body');
+                const buttonArea = cardBody.querySelector('.d-flex.justify-content-between.align-items-center:last-child');
+                
+                if (buttonArea) {
+                    const rightElement = buttonArea.querySelector(':last-child');
+                    
+                    if (isReconstructed) {
+                        // Replace with view button
+                        if (!rightElement.classList.contains('btn')) {
+                            rightElement.outerHTML = `<button class="btn btn-sm btn-outline-success" onclick="viewReconstruction('${faceId}', event)">
+                                <i class="fas fa-eye"></i> View
+                            </button>`;
+                        }
+                    } else {
+                        // Replace with directory info
+                        if (rightElement.classList.contains('btn')) {
+                            const face = allMaskedFaces.find(f => f.face_id === faceId);
+                            rightElement.outerHTML = `<small class="text-muted">${face ? face.directory : ''}</small>`;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Select all faces
+        function selectAllFaces() {
+            selectedFaces = allMaskedFaces.map(face => face.face_id);
+            updateSelectionUI();
+            
+            // Refresh all face cards
+            selectedFaces.forEach(faceId => refreshFaceCard(faceId));
+        }
+
+        // Clear selection
+        function clearSelection() {
+            const previouslySelected = [...selectedFaces];
+            selectedFaces = [];
+            updateSelectionUI();
+            
+            // Refresh previously selected face cards
+            previouslySelected.forEach(faceId => refreshFaceCard(faceId));
+        }
+
+        // Select faces from specific video
+        function selectVideoFaces(videoId) {
+            const videoFaces = allMaskedFaces.filter(face => face.video_id === videoId);
+            videoFaces.forEach(face => {
+                if (!selectedFaces.includes(face.face_id)) {
+                    selectedFaces.push(face.face_id);
+                }
+            });
+            
+            updateSelectionUI();
+            videoFaces.forEach(face => refreshFaceCard(face.face_id));
+        }
+
+        // Deselect faces from specific video
+        function deselectVideoFaces(videoId) {
+            const videoFaceIds = allMaskedFaces.filter(face => face.video_id === videoId).map(face => face.face_id);
+            selectedFaces = selectedFaces.filter(faceId => !videoFaceIds.includes(faceId));
+            
+            updateSelectionUI();
+            videoFaceIds.forEach(faceId => refreshFaceCard(faceId));
+        }
+
+        // Start reconstruction process
+        function startReconstruction() {
+            if (selectedFaces.length === 0) {
+                showAlert('Please select at least one face for reconstruction.', 'warning');
+                return;
+            }
+            
+            document.getElementById('modal-selected-count').textContent = selectedFaces.length;
+            
+            const modal = new bootstrap.Modal(document.getElementById('reconstructionModal'));
+            modal.show();
+        }
+
+        // Execute reconstruction
+        async function executeReconstruction() {
+            const method = document.getElementById('reconstruction-method').value;
+            const saveOriginals = document.getElementById('save-originals').checked;
+            
+            try {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('reconstructionModal'));
+                modal.hide();
+                
+                // Show progress
+                showAlert(`Starting reconstruction of ${selectedFaces.length} faces using ${method} method...`, 'info');
+                
+                // Call reconstruction API
+                const response = await fetch('/api/masked/batch_reconstruct', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        face_ids: selectedFaces,
+                        method: method,
+                        save_originals: saveOriginals
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Reconstruction failed: ${response.status}`);
+                }
+                
+                const results = await response.json();
+                
+                // Update reconstruction results
+                results.results.forEach(result => {
+                    reconstructionResults[result.face_id] = result;
+                });
+                
+                // Update UI
+                updateStats({ total_faces: allMaskedFaces.length, videos_count: 0 });
+                
+                // Refresh affected face cards
+                selectedFaces.forEach(faceId => refreshFaceCard(faceId));
+                
+                showAlert(`Successfully reconstructed ${results.successful_reconstructions} faces!`, 'success');
+                
+                if (results.failed_reconstructions > 0) {
+                    console.warn('Some reconstructions failed:', results.errors);
+                }
+                
+            } catch (error) {
+                console.error('Reconstruction error:', error);
+                showAlert(`Reconstruction failed: ${error.message}`, 'danger');
+            }
+        }
+
+        // View reconstruction result
+        function viewReconstruction(faceId, event) {
+            event.stopPropagation(); // Prevent card selection
+            
+            const result = reconstructionResults[faceId];
+            if (!result) {
+                showAlert('Reconstruction result not found.', 'warning');
+                return;
+            }
+            
+            const face = allMaskedFaces.find(f => f.face_id === faceId);
+            if (!face) return;
+            
+            const panel = document.getElementById('reconstruction-panel');
+            const content = document.getElementById('reconstruction-content');
+            
+            content.innerHTML = `
+                <h6>Face ${face.face_index} from Video ${face.video_id}</h6>
+                <p class="text-muted">Timestamp: ${face.timestamp.toFixed(1)}s</p>
+                
+                <div class="comparison-container">
+                    <div class="comparison-item">
+                        <h6>Original (Masked)</h6>
+                        <img src="${face.image_path}" alt="Original masked face">
+                    </div>
+                    <div class="comparison-item">
+                        <h6>Reconstructed</h6>
+                        <img src="${result.reconstructed_path}" alt="Reconstructed face" class="reconstruction-preview">
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Method:</strong> ${result.method}<br>
+                        <strong>Quality Score:</strong> ${result.quality_score ? (result.quality_score * 100).toFixed(1) + '%' : 'N/A'}
+                    </small>
+                </div>
+                
+                <div class="mt-3">
+                    <button class="btn btn-primary btn-sm w-100" onclick="downloadReconstruction('${faceId}')">
+                        <i class="fas fa-download"></i> Download Reconstruction
+                    </button>
+                </div>
+            `;
+            
+            panel.style.display = 'block';
+        }
+
+        // Close reconstruction panel
+        function closeReconstructionPanel() {
+            document.getElementById('reconstruction-panel').style.display = 'none';
+        }
+
+        // Download reconstruction
+        function downloadReconstruction(faceId) {
+            const result = reconstructionResults[faceId];
+            if (result && result.reconstructed_path) {
+                const link = document.createElement('a');
+                link.href = result.reconstructed_path;
+                link.download = `reconstructed_${faceId}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Utility function to show alerts
+        function showAlert(message, type = 'info') {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const main = document.querySelector('main');
+            main.insertBefore(alert, main.firstChild);
+            
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

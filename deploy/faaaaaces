@@ -1,0 +1,357 @@
+#!/usr/bin/env python3
+"""
+FAAAAACES Deployment Binary
+Unified launcher for Face Recognition & Mask Detection Platform
+"""
+
+import os
+import sys
+import subprocess
+import argparse
+import signal
+import time
+import platform
+
+class FAAAAAACESDeployment:
+    def __init__(self):
+        self.project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.venv_path = os.path.join(self.project_root, '.venv')
+        self.python_cmd = os.path.join(self.venv_path, 'bin', 'python3')
+        self.pip_cmd = os.path.join(self.venv_path, 'bin', 'pip')
+        self.pid_file = os.path.join(self.project_root, 'server.pid')
+        self.log_file = os.path.join(self.project_root, 'server.log')
+        
+        # Platform detection
+        self.is_macos = platform.system() == 'Darwin'
+        self.is_linux = platform.system() == 'Linux'
+        self.is_windows = platform.system() == 'Windows'
+        
+    def check_dependencies(self):
+        """Check if all required dependencies are installed"""
+        print("🔍 Checking system dependencies...")
+        
+        # Check Python version
+        if sys.version_info < (3, 8):
+            print("❌ Python 3.8+ required")
+            return False
+            
+        # Check virtual environment
+        if not os.path.exists(self.venv_path):
+            print("❌ Virtual environment not found. Run 'setup' first.")
+            return False
+            
+        # Check key packages
+        try:
+            subprocess.run([self.python_cmd, '-c', 'import flask'], 
+                         check=True, capture_output=True)
+            subprocess.run([self.python_cmd, '-c', 'import cv2'], 
+                         check=True, capture_output=True)
+            subprocess.run([self.python_cmd, '-c', 'import deepface'], 
+                         check=True, capture_output=True)
+            print("✅ All dependencies satisfied")
+            return True
+        except subprocess.CalledProcessError:
+            print("❌ Missing required Python packages. Run 'setup' first.")
+            return False
+            
+    def setup_environment(self):
+        """Set up the virtual environment and install dependencies"""
+        print("🔧 Setting up FAAAAACES environment...")
+        
+        # Create virtual environment
+        if not os.path.exists(self.venv_path):
+            print("📦 Creating virtual environment...")
+            subprocess.run([sys.executable, '-m', 'venv', self.venv_path], check=True)
+            
+        # Upgrade pip
+        print("🔄 Upgrading pip...")
+        subprocess.run([self.pip_cmd, 'install', '--upgrade', 'pip'], check=True)
+        
+        # Install requirements
+        requirements_files = [
+            'requirements.txt',
+            'requirements-gpu-detection.txt',
+            'requirements-mask-reconstruction.txt'
+        ]
+        
+        for req_file in requirements_files:
+            req_path = os.path.join(self.project_root, req_file)
+            if os.path.exists(req_path):
+                print(f"📋 Installing {req_file}...")
+                subprocess.run([self.pip_cmd, 'install', '-r', req_path], check=True)
+                
+        # Initialize database
+        print("🗄️ Initializing database...")
+        subprocess.run([self.python_cmd, '-c', 
+                       'from app.models.database import init_db; init_db()'], 
+                      cwd=self.project_root, check=True)
+        
+        print("✅ Environment setup complete!")
+        
+    def start_server(self, port=5005, debug=False, background=True):
+        """Start the FAAAAACES server"""
+        if not self.check_dependencies():
+            return False
+            
+        # Check if server is already running
+        if self.is_running():
+            print("⚠️  Server is already running")
+            return False
+            
+        print(f"🚀 Starting FAAAAACES server on port {port}...")
+        
+        # Set environment variables
+        env = os.environ.copy()
+        env['FLASK_ENV'] = 'production' if not debug else 'development'
+        env['FLASK_DEBUG'] = 'True' if debug else 'False'
+        
+        # Start server
+        cmd = [self.python_cmd, 'run_simple.py']
+        
+        if background:
+            # Start in background
+            with open(self.log_file, 'w') as log:
+                process = subprocess.Popen(
+                    cmd,
+                    cwd=self.project_root,
+                    env=env,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True
+                )
+                
+            # Save PID
+            with open(self.pid_file, 'w') as f:
+                f.write(str(process.pid))
+                
+            # Wait and check if started successfully
+            time.sleep(3)
+            if self.is_running():
+                print(f"✅ Server started successfully!")
+                print(f"🌐 URL: http://localhost:{port}")
+                print(f"📄 Logs: tail -f {self.log_file}")
+                print(f"🛑 Stop: {sys.argv[0]} stop")
+                return True
+            else:
+                print("❌ Server failed to start. Check logs.")
+                return False
+        else:
+            # Start in foreground
+            print(f"🌐 Server will be available at: http://localhost:{port}")
+            print("Press Ctrl+C to stop...")
+            try:
+                subprocess.run(cmd, cwd=self.project_root, env=env)
+            except KeyboardInterrupt:
+                print("\n🛑 Server stopped by user")
+                return True
+                
+    def stop_server(self):
+        """Stop the FAAAAACES server"""
+        if not self.is_running():
+            print("ℹ️  Server is not running")
+            return True
+            
+        # Read PID
+        try:
+            with open(self.pid_file, 'r') as f:
+                pid = int(f.read().strip())
+        except (FileNotFoundError, ValueError):
+            print("❌ Could not read PID file")
+            return False
+            
+        print(f"🛑 Stopping server (PID: {pid})...")
+        
+        try:
+            # Graceful shutdown
+            os.kill(pid, signal.SIGTERM)
+            time.sleep(2)
+            
+            # Force kill if still running
+            if self.is_running():
+                print("⚡ Force stopping server...")
+                os.kill(pid, signal.SIGKILL)
+                time.sleep(1)
+                
+            # Clean up
+            if os.path.exists(self.pid_file):
+                os.remove(self.pid_file)
+                
+            print("✅ Server stopped successfully")
+            return True
+            
+        except ProcessLookupError:
+            print("⚠️  Process not found (already stopped)")
+            if os.path.exists(self.pid_file):
+                os.remove(self.pid_file)
+            return True
+        except Exception as e:
+            print(f"❌ Error stopping server: {e}")
+            return False
+            
+    def is_running(self):
+        """Check if the server is running"""
+        if not os.path.exists(self.pid_file):
+            return False
+            
+        try:
+            with open(self.pid_file, 'r') as f:
+                pid = int(f.read().strip())
+            # Check if process exists
+            os.kill(pid, 0)
+            return True
+        except (FileNotFoundError, ValueError, ProcessLookupError):
+            return False
+            
+    def status(self):
+        """Show server status"""
+        print("📊 FAAAAACES Server Status")
+        print("=" * 30)
+        
+        if self.is_running():
+            with open(self.pid_file, 'r') as f:
+                pid = int(f.read().strip())
+            print(f"🟢 Status: Running (PID: {pid})")
+            print(f"🌐 URL: http://localhost:5005")
+            print(f"📄 Logs: {self.log_file}")
+        else:
+            print("🔴 Status: Stopped")
+            
+        # Show last few log lines if available
+        if os.path.exists(self.log_file):
+            print("\n📋 Recent logs:")
+            print("-" * 20)
+            try:
+                with open(self.log_file, 'r') as f:
+                    lines = f.readlines()
+                    for line in lines[-5:]:
+                        print(line.rstrip())
+            except Exception:
+                print("Could not read logs")
+                
+    def run_tests(self):
+        """Run the test suite"""
+        print("🧪 Running FAAAAACES tests...")
+        
+        if not self.check_dependencies():
+            return False
+            
+        test_files = [
+            'tests/test_server.py',
+            'tests/test_face_reconstruction.py'
+        ]
+        
+        success = True
+        for test_file in test_files:
+            test_path = os.path.join(self.project_root, test_file)
+            if os.path.exists(test_path):
+                print(f"▶️  Running {test_file}...")
+                try:
+                    subprocess.run([self.python_cmd, test_path], 
+                                 cwd=self.project_root, check=True)
+                    print(f"✅ {test_file} passed")
+                except subprocess.CalledProcessError:
+                    print(f"❌ {test_file} failed")
+                    success = False
+            else:
+                print(f"⚠️  {test_file} not found")
+                
+        return success
+        
+    def health_check(self):
+        """Perform a health check"""
+        print("🏥 FAAAAACES Health Check")
+        print("=" * 25)
+        
+        # Check dependencies
+        deps_ok = self.check_dependencies()
+        print(f"📦 Dependencies: {'✅' if deps_ok else '❌'}")
+        
+        # Check database
+        try:
+            subprocess.run([self.python_cmd, '-c', 
+                           'from app.models.database import init_db; init_db()'], 
+                          cwd=self.project_root, check=True, capture_output=True)
+            print("🗄️ Database: ✅")
+            db_ok = True
+        except:
+            print("🗄️ Database: ❌")
+            db_ok = False
+            
+        # Check server status
+        server_running = self.is_running()
+        print(f"🚀 Server: {'✅ Running' if server_running else '🔴 Stopped'}")
+        
+        # Overall health
+        overall = deps_ok and db_ok
+        print(f"\n🎯 Overall Health: {'✅ Good' if overall else '❌ Issues Found'}")
+        
+        return overall
+        
+    def setup_reverse_proxy(self):
+        """Setup reverse proxy (nginx/Apache)"""
+        print("🔧 Setting up reverse proxy...")
+        
+        proxy_script = os.path.join(self.project_root, 'deploy', 'setup-reverse-proxy.sh')
+        
+        if not os.path.exists(proxy_script):
+            print("❌ Reverse proxy setup script not found")
+            return False
+            
+        try:
+            subprocess.run([proxy_script], cwd=self.project_root, check=True)
+            print("✅ Reverse proxy setup completed")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Reverse proxy setup failed: {e}")
+            return False
+
+def main():
+    parser = argparse.ArgumentParser(description='FAAAAACES Deployment Tool')
+    parser.add_argument('command', choices=[
+        'setup', 'start', 'stop', 'restart', 'status', 'test', 'health', 'proxy'
+    ], help='Command to execute')
+    parser.add_argument('--port', type=int, default=5005, help='Server port')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--foreground', action='store_true', help='Run in foreground')
+    
+    args = parser.parse_args()
+    
+    deployment = FAAAAAACESDeployment()
+    
+    try:
+        if args.command == 'setup':
+            deployment.setup_environment()
+        elif args.command == 'start':
+            deployment.start_server(
+                port=args.port, 
+                debug=args.debug, 
+                background=not args.foreground
+            )
+        elif args.command == 'stop':
+            deployment.stop_server()
+        elif args.command == 'restart':
+            deployment.stop_server()
+            time.sleep(2)
+            deployment.start_server(
+                port=args.port, 
+                debug=args.debug, 
+                background=not args.foreground
+            )
+        elif args.command == 'status':
+            deployment.status()
+        elif args.command == 'test':
+            deployment.run_tests()
+        elif args.command == 'health':
+            deployment.health_check()
+        elif args.command == 'proxy':
+            deployment.setup_reverse_proxy()
+            
+    except KeyboardInterrupt:
+        print("\n🛑 Operation cancelled by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

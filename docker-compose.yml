@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  faaaaaces:
+    build: .
+    container_name: faaaaaces-server
+    ports:
+      - "5005:5005"
+    volumes:
+      # Persistent data
+      - ./faaaaaces.db:/app/faaaaaces.db
+      - ./faces:/app/faces
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./temp:/app/temp
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=False
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # GPU support (uncomment if you have NVIDIA GPU)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Optional: Add a reverse proxy
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: faaaaaces-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #   depends_on:
+  #     - faaaaaces
+  #   restart: unless-stopped

@@ -57,13 +57,42 @@ temp/
 # Logs
 *.log
 logs/
+server.log
+server.pid
+deployment.log
+deployment_report.txt
 
-# Face recognition models (downloaded by DeepFace)
+# Face recognition models (downloaded automatically)
 .deepface/
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pb
 
 # Temporary files
 *.tmp
 *.temp
+
+# Debug and test artifacts
+debug_*.jpg
+debug_*.png
+test_*.jpg
+test_*.png
+unified_detection_result.jpg
+
+# SSL certificates
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Backup files
+*.bak
+*.backup
+*.orig
+venv_backup_*/
 
 # Large video files
 *.mp4

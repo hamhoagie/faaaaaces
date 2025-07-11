@@ -33,8 +33,14 @@ def create_app():
     # Register blueprints
     from app.routes.main import main_bp
     from app.routes.api import api_bp
+    from app.routes.mask_api import mask_api_bp
+    from app.routes.enhanced_mask_api import enhanced_mask_api_bp
+    from app.routes.masked_faces_api import masked_faces_api_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(mask_api_bp, url_prefix='/api/masks')
+    app.register_blueprint(enhanced_mask_api_bp, url_prefix='/api/enhanced')
+    app.register_blueprint(masked_faces_api_bp, url_prefix='/api/masked')
     
     return app

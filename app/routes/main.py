@@ -9,14 +9,14 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    """Main dashboard page"""
+    """Unified dashboard page with workflow-style interface"""
     # Get recent videos and clusters for display
     videos = VideoModel.get_all()[:10]  # Last 10 videos
     clusters = FaceClusterModel.get_all_with_faces()[:20]  # Top 20 clusters
     active_jobs = ProcessingJobModel.get_active_jobs()
     total_faces = FaceModel.get_total_count()
     
-    return render_template('index.html', 
+    return render_template('unified_dashboard.html', 
                          videos=videos, 
                          clusters=clusters,
                          active_jobs=active_jobs,
@@ -56,6 +56,21 @@ def cluster_detail(cluster_id):
     """Individual cluster detail page"""
     # Implementation would show all faces in a cluster
     return render_template('cluster_detail.html', cluster_id=cluster_id)
+
+@main_bp.route('/mask-operations')
+def mask_operations():
+    """Unified mask detection and face reconstruction workflow page"""
+    return render_template('unified_mask_operations.html')
+
+@main_bp.route('/mask-status')
+def mask_status():
+    """Mask detection system status and quick test page"""
+    return render_template('mask_status.html')
+
+@main_bp.route('/masked-faces')
+def masked_faces_gallery():
+    """Masked faces gallery page"""
+    return render_template('masked_faces_gallery.html')
 
 @main_bp.route('/faces/<path:filename>')
 def serve_face_image(filename):

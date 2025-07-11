@@ -1,0 +1,17 @@
+# GPU-accelerated face and mask detection requirements
+
+# YOLO and object detection
+ultralytics>=8.0.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# GPU acceleration (CUDA support)
+# Note: Install PyTorch with CUDA support if GPU available:
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+
+# Additional computer vision
+opencv-python>=4.8.0
+Pillow>=9.0.0
+
+# Performance optimization
+numba>=0.58.0  # JIT compilation for performance

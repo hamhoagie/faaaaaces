@@ -161,17 +161,35 @@ class VideoModel:
 class FaceModel:
     @staticmethod
     def create(video_id: int, frame_timestamp: float, face_image_path: str, 
-               bbox: Tuple[int, int, int, int], confidence: float, embedding: List[float]) -> int:
-        """Create a new face record"""
+               bbox: Tuple[int, int, int, int], confidence: float, embedding: List[float],
+               mask_info: Dict = None, reconstruction_info: Dict = None) -> int:
+        """Create a new face record with optional mask detection and reconstruction data"""
         conn = get_db_connection()
+        
+        # Prepare mask detection data
+        is_masked = mask_info.get('is_masked', False) if mask_info else False
+        mask_confidence = mask_info.get('confidence', 0.0) if mask_info else 0.0
+        mask_type = mask_info.get('mask_type') if mask_info else None
+        mask_detection_method = mask_info.get('method') if mask_info else None
+        
+        # Prepare reconstruction data
+        has_reconstruction = reconstruction_info.get('success', False) if reconstruction_info else False
+        reconstructed_image_path = reconstruction_info.get('reconstructed_image_path') if reconstruction_info else None
+        reconstruction_quality = reconstruction_info.get('quality_score', 0.0) if reconstruction_info else 0.0
+        reconstruction_method = reconstruction_info.get('method') if reconstruction_info else None
+        
         cursor = conn.execute('''
             INSERT INTO faces (video_id, frame_timestamp, face_image_path, bbox_x, bbox_y, 
-                              bbox_width, bbox_height, confidence, embedding)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                              bbox_width, bbox_height, confidence, embedding, is_masked, mask_confidence,
+                              mask_type, mask_detection_method, has_reconstruction,
+                              reconstructed_image_path, reconstruction_quality, reconstruction_method)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             video_id, frame_timestamp, face_image_path,
             bbox[0], bbox[1], bbox[2], bbox[3],
-            confidence, json.dumps(embedding)
+            confidence, json.dumps(embedding), is_masked, mask_confidence,
+            mask_type, mask_detection_method, has_reconstruction,
+            reconstructed_image_path, reconstruction_quality, reconstruction_method
         ))
         face_id = cursor.lastrowid
         conn.commit()
@@ -225,6 +243,95 @@ class FaceModel:
         result = conn.execute('SELECT COUNT(*) FROM faces').fetchone()
         conn.close()
         return result[0]
+    
+    @staticmethod
+    def get_masked_faces(video_id: int = None) -> List[Dict]:
+        """Get all masked faces, optionally filtered by video"""
+        conn = get_db_connection()
+        if video_id:
+            query = '''
+                SELECT f.*, v.filename as video_filename 
+                FROM faces f 
+                JOIN videos v ON f.video_id = v.id 
+                WHERE f.is_masked = 1 AND f.video_id = ?
+                ORDER BY f.frame_timestamp
+            '''
+            rows = conn.execute(query, (video_id,)).fetchall()
+        else:
+            query = '''
+                SELECT f.*, v.filename as video_filename 
+                FROM faces f 
+                JOIN videos v ON f.video_id = v.id 
+                WHERE f.is_masked = 1
+                ORDER BY f.video_id, f.frame_timestamp
+            '''
+            rows = conn.execute(query).fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    @staticmethod
+    def get_reconstructed_faces(video_id: int = None) -> List[Dict]:
+        """Get all faces with reconstructions, optionally filtered by video"""
+        conn = get_db_connection()
+        if video_id:
+            query = '''
+                SELECT f.*, v.filename as video_filename 
+                FROM faces f 
+                JOIN videos v ON f.video_id = v.id 
+                WHERE f.has_reconstruction = 1 AND f.video_id = ?
+                ORDER BY f.frame_timestamp
+            '''
+            rows = conn.execute(query, (video_id,)).fetchall()
+        else:
+            query = '''
+                SELECT f.*, v.filename as video_filename 
+                FROM faces f 
+                JOIN videos v ON f.video_id = v.id 
+                WHERE f.has_reconstruction = 1
+                ORDER BY f.video_id, f.frame_timestamp
+            '''
+            rows = conn.execute(query).fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    @staticmethod
+    def get_mask_statistics() -> Dict:
+        """Get statistics about masked faces across all videos"""
+        conn = get_db_connection()
+        
+        # Total face counts
+        total_faces = conn.execute('SELECT COUNT(*) FROM faces').fetchone()[0]
+        masked_faces = conn.execute('SELECT COUNT(*) FROM faces WHERE is_masked = 1').fetchone()[0]
+        reconstructed_faces = conn.execute('SELECT COUNT(*) FROM faces WHERE has_reconstruction = 1').fetchone()[0]
+        
+        # Mask types
+        mask_types = conn.execute('''
+            SELECT mask_type, COUNT(*) as count 
+            FROM faces 
+            WHERE is_masked = 1 AND mask_type IS NOT NULL 
+            GROUP BY mask_type
+        ''').fetchall()
+        
+        # Reconstruction methods
+        recon_methods = conn.execute('''
+            SELECT reconstruction_method, COUNT(*) as count, AVG(reconstruction_quality) as avg_quality
+            FROM faces 
+            WHERE has_reconstruction = 1 AND reconstruction_method IS NOT NULL 
+            GROUP BY reconstruction_method
+        ''').fetchall()
+        
+        conn.close()
+        
+        return {
+            'total_faces': total_faces,
+            'masked_faces': masked_faces,
+            'unmasked_faces': total_faces - masked_faces,
+            'reconstructed_faces': reconstructed_faces,
+            'mask_percentage': (masked_faces / total_faces * 100) if total_faces > 0 else 0,
+            'reconstruction_percentage': (reconstructed_faces / masked_faces * 100) if masked_faces > 0 else 0,
+            'mask_types': {row[0]: row[1] for row in mask_types},
+            'reconstruction_methods': {row[0]: {'count': row[1], 'avg_quality': row[2]} for row in recon_methods}
+        }
 
 class FaceClusterModel:
     @staticmethod

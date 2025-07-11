@@ -1,5 +1,5 @@
 """
-Face extraction service using DeepFace
+Face extraction service using DeepFace with mask detection and reconstruction
 """
 import cv2
 import os
@@ -8,13 +8,17 @@ from deepface import DeepFace
 from typing import List, Dict, Tuple, Optional
 import json
 from PIL import Image
+from .mask_detector import MaskDetector
+from .face_reconstructor import FaceReconstructor
 
 class FaceExtractor:
     def __init__(self, 
                  detector_backend: str = 'opencv',
                  model_name: str = 'VGG-Face',
                  confidence_threshold: float = 0.7,
-                 face_size: int = 224):
+                 face_size: int = 224,
+                 enable_mask_detection: bool = True,
+                 enable_face_reconstruction: bool = True):
         """
         Initialize face extractor
         
@@ -23,11 +27,25 @@ class FaceExtractor:
             model_name: Face recognition model ('VGG-Face', 'Facenet', 'OpenFace', 'DeepID')
             confidence_threshold: Minimum confidence for face detection
             face_size: Size to resize extracted faces
+            enable_mask_detection: Enable mask detection on faces
+            enable_face_reconstruction: Enable face reconstruction for masked faces
         """
         self.detector_backend = detector_backend
         self.model_name = model_name
         self.confidence_threshold = confidence_threshold
         self.face_size = face_size
+        self.enable_mask_detection = enable_mask_detection
+        self.enable_face_reconstruction = enable_face_reconstruction
+        
+        # Initialize mask detection and reconstruction services
+        if self.enable_mask_detection:
+            self.mask_detector = MaskDetector()
+            print("✅ Mask detection enabled")
+        
+        if self.enable_face_reconstruction:
+            # Use classical reconstruction as fallback since GFPGAN may not be available
+            self.face_reconstructor = FaceReconstructor(model_type="classical")
+            print("✅ Face reconstruction enabled")
         
         # Preload models to avoid repeated loading
         try:
@@ -250,3 +268,128 @@ class FaceExtractor:
             return result[0] if isinstance(result, list) else result
         except Exception as e:
             return {'error': str(e)}
+    
+    def process_masked_faces(self, face_data: List[Dict]) -> Dict:
+        """
+        Process faces to detect masks and reconstruct masked faces
+        
+        Args:
+            face_data: List of face detection results
+            
+        Returns:
+            Dictionary with masked faces and reconstruction results
+        """
+        if not self.enable_mask_detection:
+            return {'masked_faces': [], 'reconstructed_faces': []}
+        
+        print("🔍 Detecting masked faces...")
+        
+        # Detect masked faces
+        masked_faces = []
+        for face in face_data:
+            if 'face_image_path' in face:
+                face_image = cv2.imread(face['face_image_path'])
+                if face_image is not None:
+                    mask_result = self.mask_detector.detect_mask(face_image)
+                    
+                    if mask_result['is_masked']:
+                        face.update(mask_result)
+                        masked_faces.append(face)
+                        print(f"😷 Found masked face: {face['face_image_path']} (confidence: {mask_result['confidence']:.2f})")
+        
+        print(f"Found {len(masked_faces)} masked faces out of {len(face_data)} total faces")
+        
+        # Reconstruct masked faces if enabled
+        reconstructed_faces = []
+        if self.enable_face_reconstruction and masked_faces:
+            print("🔧 Reconstructing masked faces...")
+            reconstructed_faces = self.face_reconstructor.batch_reconstruct_faces(masked_faces)
+            
+            # Save reconstruction results
+            self._save_reconstruction_results(reconstructed_faces)
+        
+        return {
+            'masked_faces': masked_faces,
+            'reconstructed_faces': reconstructed_faces,
+            'total_faces': len(face_data),
+            'masked_count': len(masked_faces),
+            'reconstructed_count': len(reconstructed_faces)
+        }
+    
+    def _save_reconstruction_results(self, reconstructed_faces: List[Dict]):
+        """Save reconstruction results to faces directory"""
+        if not reconstructed_faces:
+            return
+        
+        # Create reconstructed faces directory
+        base_dir = os.path.dirname(reconstructed_faces[0]['face_image_path'])
+        recon_dir = os.path.join(base_dir, 'reconstructed')
+        os.makedirs(recon_dir, exist_ok=True)
+        
+        for i, result in enumerate(reconstructed_faces):
+            if result['success']:
+                # Generate filename for reconstructed face
+                original_filename = os.path.basename(result['face_image_path'])
+                name, ext = os.path.splitext(original_filename)
+                recon_filename = f"{name}_reconstructed{ext}"
+                recon_path = os.path.join(recon_dir, recon_filename)
+                
+                # Save reconstructed image
+                cv2.imwrite(recon_path, result['reconstructed_image'])
+                
+                # Update result with saved path
+                result['reconstructed_image_path'] = recon_path
+                
+                print(f"💾 Saved reconstructed face: {recon_filename}")
+    
+    def get_masked_face_statistics(self, face_data: List[Dict]) -> Dict:
+        """
+        Get statistics about masked vs unmasked faces
+        
+        Args:
+            face_data: List of face detection results
+            
+        Returns:
+            Statistics dictionary
+        """
+        if not self.enable_mask_detection:
+            return {'error': 'Mask detection not enabled'}
+        
+        masked_count = 0
+        unmasked_count = 0
+        mask_types = {}
+        
+        for face in face_data:
+            if 'face_image_path' in face:
+                face_image = cv2.imread(face['face_image_path'])
+                if face_image is not None:
+                    mask_result = self.mask_detector.detect_mask(face_image)
+                    
+                    if mask_result['is_masked']:
+                        masked_count += 1
+                        mask_type = mask_result.get('mask_type', 'unknown')
+                        mask_types[mask_type] = mask_types.get(mask_type, 0) + 1
+                    else:
+                        unmasked_count += 1
+        
+        total_faces = masked_count + unmasked_count
+        
+        return {
+            'total_faces': total_faces,
+            'masked_faces': masked_count,
+            'unmasked_faces': unmasked_count,
+            'mask_percentage': (masked_count / total_faces * 100) if total_faces > 0 else 0,
+            'mask_types': mask_types
+        }
+    
+    def enable_advanced_features(self):
+        """Enable mask detection and face reconstruction if not already enabled"""
+        if not self.enable_mask_detection:
+            self.enable_mask_detection = True
+            self.mask_detector = MaskDetector()
+            print("✅ Mask detection enabled")
+        
+        if not self.enable_face_reconstruction:
+            self.enable_face_reconstruction = True
+            self.face_reconstructor = FaceReconstructor(model_type="classical")
+            print("✅ Face reconstruction enabled")
