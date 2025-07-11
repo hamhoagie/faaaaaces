@@ -36,68 +36,144 @@ A Python web application that processes videos to extract and catalog faces usin
 
 ## Quick Start
 
-### 1. Installation
+### 1. Automated Deployment (Recommended)
 
 **⚠️ Python Version Requirement for Full Features**
 
-For **full DeepFace integration**, use **Python 3.12 or earlier**:
-```bash
-# Recommended: Python 3.12
-python3.12 -m venv venv
-source venv/bin/activate
-```
-
-With **Python 3.13**, the app runs with **basic OpenCV face detection** (DeepFace/TensorFlow not yet compatible).
+For **full DeepFace integration**, use **Python 3.12 or earlier**. With **Python 3.13**, the app runs with **basic OpenCV face detection** (DeepFace/TensorFlow not yet compatible).
 
 **✅ Successfully tested with Python 3.12 + DeepFace + TensorFlow 2.19.0**
 
 ```bash
-# Clone and setup
+# Clone the repository
 git clone <repository-url>
 cd faaaaaces
 
-# Create virtual environment (Python 3.12 recommended for DeepFace)
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Run automated deployment
+./deploy.sh
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Start the server
+./deploy/faaaaaces start
 
-# Create environment file
-cp .env.example .env
-# Edit .env with your configuration
+# Open your browser
+open http://localhost:5005
 ```
 
-### 2. Run the Application
+### 2. Manual Setup
 
 ```bash
-python run.py
+# Create virtual environment (Python 3.12 recommended)
+python3.12 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-gpu-detection.txt      # Optional: GPU support
+pip install -r requirements-mask-reconstruction.txt # Optional: Advanced AI
+
+# Initialize database
+python3 -c "from app.models.database import init_db; init_db()"
+
+# Start development server
+python3 run_simple.py
 ```
 
-Visit `http://localhost:5000` to access the web interface.
+### 3. Docker Deployment
 
-### 3. Process Your First Video
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
 
-**Option A: Upload a file**
-1. Go to "Upload Video" page
-2. Drag and drop video files or click to select
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f faaaaaces
+```
+
+### 4. Production Deployment
+
+```bash
+# Setup reverse proxy (nginx/Apache)
+./deploy/faaaaaces proxy
+
+# For production with SSL
+./deploy/setup-reverse-proxy.sh
+```
+
+The application will be available at `http://localhost:5005` (or your configured domain with reverse proxy).
+
+### 5. Process Your First Video
+
+**🎭 Mask Detection Workflow** (Advanced Features)
+1. Visit the **Mask Detection Workflow** page
+2. **Step 1**: Upload video file, enter URL, or select existing video
+3. **Step 2**: Choose detection mode (full video or targeted timestamps)
+4. **Step 3**: Review detected faces and select masked faces
+5. **Step 4**: Reconstruct faces using AI models
+6. **Step 5**: View before/after results and download
+
+**📤 Basic Face Recognition**
+1. Go to "Upload Video" page or use URL processing
+2. Drag and drop video files or enter video URL
 3. Wait for processing to complete
+4. View results in the dashboard
 
-**Option B: Process from URL**
-1. Enter a video URL (YouTube, Instagram, TikTok, Vimeo, etc.)
-2. Click "Process" 
-3. The video will be downloaded and processed automatically
-
-**Supported URL formats:**
+**🔗 Supported URL formats:**
 - YouTube: `https://youtube.com/watch?v=...` or `https://youtu.be/...`
 - Instagram: `https://instagram.com/p/...` or `https://instagram.com/reel/...`
 - TikTok: `https://tiktok.com/@user/video/...` or `https://vm.tiktok.com/...`
 - Vimeo: `https://vimeo.com/...`
 
-**Option C: Batch processing**
-1. Enter multiple URLs (one per line)
-2. Click "Process All URLs"
-3. Monitor progress on the dashboard
+**📊 Monitor Progress**
+- Real-time updates on the unified dashboard
+- Processing status and face detection results
+- Face clustering and similarity analysis
+
+## Deployment Management
+
+### Binary Commands
+
+The `deploy/faaaaaces` binary provides comprehensive deployment management:
+
+```bash
+# Environment setup
+./deploy/faaaaaces setup          # Setup virtual environment and dependencies
+
+# Server management
+./deploy/faaaaaces start          # Start the server
+./deploy/faaaaaces stop           # Stop the server
+./deploy/faaaaaces restart        # Restart the server
+./deploy/faaaaaces status         # Check server status
+
+# Maintenance
+./deploy/faaaaaces test           # Run test suite
+./deploy/faaaaaces health         # Perform health check
+./deploy/faaaaaces proxy          # Setup reverse proxy (nginx/Apache)
+```
+
+### Command Options
+
+```bash
+# Custom port
+./deploy/faaaaaces start --port 8080
+
+# Debug mode
+./deploy/faaaaaces start --debug
+
+# Run in foreground
+./deploy/faaaaaces start --foreground
+```
+
+### Deployment Scripts
+
+```bash
+# Master deployment script
+./deploy.sh                       # Full automated deployment
+
+# Reverse proxy setup
+./deploy/setup-reverse-proxy.sh   # Interactive nginx/Apache setup
+```
 
 ## Architecture
 
@@ -145,11 +221,23 @@ TEMP_FOLDER=temp       # Temporary processing files
 - `POST /api/upload_video` - Upload video file
 - `POST /api/process_url` - Process single video URL
 - `POST /api/process_urls` - Process multiple video URLs
+- `GET /api/videos_list` - List all videos
 
 ### Face Management
 - `POST /api/cluster_faces` - Trigger face clustering
 - `GET /api/clusters` - Get all face clusters
 - `GET /api/video_info/<id>` - Get video details and faces
+
+### Mask Detection (Advanced)
+- `POST /api/enhanced/enhanced_detect_masks/<video_id>` - Detect masks in video
+- `POST /api/enhanced/enhanced_extract_timestamps/<video_id>` - Extract specific timestamps
+- `GET /api/masked/all_masked_faces` - Get all detected masked faces
+- `POST /api/masked/batch_reconstruct` - Reconstruct multiple faces
+- `POST /api/masked/reconstruct/<face_id>` - Reconstruct single face
+
+### Legacy Mask Detection
+- `POST /api/mask/detect_masks/<video_id>` - Basic mask detection
+- `POST /api/mask/extract_timestamps/<video_id>` - Extract targeted frames
 
 ### Job Status
 - `GET /api/job_status/<id>` - Get processing job status
@@ -245,23 +333,48 @@ pip install opencv-python-headless
 ### 🗂️ Project Structure
 ```
 faaaaaces/
-├── app/
-│   ├── models/                  # Database models and schema
-│   ├── services/               # Core processing services
-│   │   ├── face_extractor.py           # DeepFace integration
-│   │   ├── face_extractor_basic.py     # OpenCV fallback
-│   │   ├── video_downloader.py         # Multi-platform downloader
-│   │   ├── video_processor.py          # Frame extraction
-│   │   └── face_clustering.py          # ML clustering
-│   ├── routes/                 # Web routes and API endpoints
-│   └── templates/              # Responsive HTML templates
+├── app/                        # Main application
+│   ├── models/                 # Database models and schema
+│   ├── services/              # Core processing services
+│   │   ├── face_extractor.py          # DeepFace integration
+│   │   ├── face_extractor_basic.py    # OpenCV fallback
+│   │   ├── video_downloader.py        # Multi-platform downloader
+│   │   ├── video_processor.py         # Frame extraction
+│   │   ├── face_clustering.py         # ML clustering
+│   │   ├── unified_face_mask_detector.py  # Advanced mask detection
+│   │   ├── face_reconstructor.py      # AI face reconstruction
+│   │   ├── mask_detector.py           # Core mask detection
+│   │   └── enhanced_video_processor.py # Optimized processing
+│   ├── routes/                # Web routes and API endpoints
+│   │   ├── api.py                     # Core API endpoints
+│   │   ├── main.py                    # Main web routes
+│   │   ├── enhanced_mask_api.py       # Advanced mask detection API
+│   │   ├── mask_api.py                # Basic mask detection API
+│   │   └── masked_faces_api.py        # Face reconstruction API
+│   ├── templates/             # Unified HTML templates
+│   │   ├── unified_dashboard.html     # Main dashboard
+│   │   ├── unified_mask_operations.html # Mask workflow
+│   │   └── masked_faces_gallery.html  # Face gallery
+│   └── static/js/             # JavaScript
+│       └── unified-mask-workflow.js   # Workflow management
+├── deploy/                     # Deployment system
+│   ├── faaaaaces              # Main deployment binary
+│   ├── setup-reverse-proxy.sh # Reverse proxy setup
+│   ├── nginx.conf             # nginx configuration
+│   └── apache.conf            # Apache configuration
+├── tests/                      # Test suite
+├── scripts/                    # Database migrations
 ├── uploads/                    # User-uploaded videos
 ├── faces/                      # Extracted face images
 ├── temp/                       # Temporary video downloads
-├── .venv/                      # Python 3.12 virtual environment
-├── start_server.sh             # Production server startup
-├── stop_server.sh              # Server management
-└── requirements.txt            # Secure dependency versions
+├── .venv/                      # Python virtual environment
+├── deploy.sh                   # Master deployment script
+├── run_simple.py               # Application entry point
+├── Dockerfile                  # Docker containerization
+├── docker-compose.yml          # Docker orchestration
+├── requirements.txt            # Core dependencies
+├── requirements-gpu-detection.txt     # GPU enhancements
+└── requirements-mask-reconstruction.txt # Advanced AI models
 ```
 
 ## Development
@@ -271,7 +384,37 @@ faaaaaces/
 1. **Custom Face Models**: Modify `face_extractor.py` to use different DeepFace models
 2. **Additional Video Sources**: Extend `video_downloader.py` for new platforms
 3. **Advanced Clustering**: Add new algorithms to `face_clustering.py`
-4. **API Extensions**: Add new endpoints in `routes/api.py`
+4. **API Extensions**: Add new endpoints in `routes/` directory
+5. **Mask Detection Models**: Extend `unified_face_mask_detector.py` for new detection methods
+6. **Face Reconstruction**: Add new AI models to `face_reconstructor.py`
+
+### Testing
+
+```bash
+# Run test suite
+./deploy/faaaaaces test
+
+# Run specific tests
+python -m pytest tests/test_server.py
+python -m pytest tests/test_face_reconstruction.py
+
+# Health check
+./deploy/faaaaaces health
+```
+
+### Deployment
+
+```bash
+# Full deployment
+./deploy.sh
+
+# Development server
+./deploy/faaaaaces start --debug --foreground
+
+# Production deployment
+./deploy/faaaaaces proxy  # Setup reverse proxy
+./deploy/faaaaaces start  # Start production server
+```
 
 ## License
 
