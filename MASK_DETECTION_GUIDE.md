@@ -1,5 +1,9 @@
 # Mask Detection and Face Reconstruction Guide
 
+> **⚠️ RESEARCH AND SECURITY PURPOSES ONLY**
+> 
+> The mask detection and face reconstruction capabilities are designed for **legitimate security research, academic study, and authorized security applications**. This technology must be used in compliance with all applicable laws, privacy regulations, and ethical guidelines. Users are solely responsible for ensuring their use case is lawful and appropriate.
+
 ## Overview
 
 FAAAAACES now supports advanced mask detection and face reconstruction capabilities. This allows you to:

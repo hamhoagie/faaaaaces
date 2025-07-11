@@ -1,5 +1,9 @@
 # FAAAAACES - Face Recognition Video Processing Application
 
+> **⚠️ RESEARCH PURPOSES ONLY**
+> 
+> This application is intended for **academic research, educational purposes, and legitimate security applications only**. Users are responsible for complying with all applicable laws, regulations, and ethical guidelines in their jurisdiction. The developers do not endorse or support any misuse of this technology for unauthorized surveillance, privacy violations, or other harmful activities.
+
 A Python web application that processes videos to extract and catalog faces using **DeepFace**, **TensorFlow**, and machine learning clustering. Supports multiple video platforms including **YouTube**, **Instagram**, **TikTok**, and direct uploads.
 
 ## Features
