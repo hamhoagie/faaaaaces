@@ -34,32 +34,94 @@ A Python web application that processes videos to extract and catalog faces usin
 - **📱 Mobile Responsive**: Works seamlessly on desktop and mobile devices
 - **🏷️ Platform Badges**: Visual indicators for Instagram, TikTok, YouTube sources
 
-## Quick Start
+## Installation & Deployment
 
-### 1. Automated Deployment (Recommended)
+**⚠️ Python Version Requirement**: For **full DeepFace integration**, use **Python 3.12 or earlier**. With **Python 3.13**, the app runs with **basic OpenCV face detection** (DeepFace/TensorFlow not yet compatible).
 
-**⚠️ Python Version Requirement for Full Features**
+### 🔧 Local Development Installation (Recommended for most users)
 
-For **full DeepFace integration**, use **Python 3.12 or earlier**. With **Python 3.13**, the app runs with **basic OpenCV face detection** (DeepFace/TensorFlow not yet compatible).
-
-**✅ Successfully tested with Python 3.12 + DeepFace + TensorFlow 2.19.0**
+**Use this for:** Development, testing, learning, or running on your personal machine.
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd faaaaaces
 
-# Run automated deployment
-./deploy.sh
+# Quick local installation
+./install.sh
 
-# Start the server
-./deploy/faaaaaces start
+# Activate virtual environment
+source .venv/bin/activate
+
+# Start development server
+python3 run.py
 
 # Open your browser
 open http://localhost:5005
 ```
 
-### 2. Manual Setup
+**What install.sh does:**
+- ✅ Sets up Python virtual environment
+- ✅ Installs all dependencies (core + optional GPU/mask reconstruction)
+- ✅ Initializes SQLite database
+- ✅ Creates necessary directories
+- ✅ Quick verification (no hanging server tests)
+- ✅ **Does NOT download AI models** (downloaded on first use)
+
+### 🚀 Production Deployment
+
+**Use this for:** Production servers, staging environments, or full deployments with system services.
+
+```bash
+# Full production deployment
+./deploy.sh
+
+# Start the server
+./deploy/faaaaaces start
+
+# Setup reverse proxy (nginx/Apache)
+./deploy/faaaaaces proxy
+```
+
+**What deploy.sh includes (beyond install.sh):**
+- ✅ Everything from local installation
+- ✅ System service setup (systemd/launchd)
+- ✅ Performance optimization & model pre-downloading
+- ✅ Full test suite (including server tests)
+- ✅ Production environment validation
+- ✅ Deployment reporting
+- ✅ Binary management system
+
+### 📊 Installation Comparison
+
+| Feature | install.sh (Local) | deploy.sh (Production) |
+|---------|-------------------|----------------------|
+| **Virtual Environment** | ✅ Yes | ✅ Yes |
+| **Core Dependencies** | ✅ Yes | ✅ Yes |
+| **Database Setup** | ✅ Yes | ✅ Yes |
+| **Directory Structure** | ✅ Yes | ✅ Yes |
+| **Quick Verification** | ✅ Simple imports | ✅ Full test suite |
+| **Server Tests** | ❌ No (avoids port issues) | ✅ Yes (port 5004) |
+| **System Services** | ❌ No | ✅ systemd/launchd |
+| **Model Pre-download** | ❌ No | ✅ YOLO models |
+| **Performance Optimization** | ❌ No | ✅ Yes |
+| **Deployment Binary** | ❌ No | ✅ faaaaaces binary |
+| **Installation Time** | ⚡ 2-5 minutes | 🕐 10-15 minutes |
+
+### 🐳 Docker Deployment
+
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f faaaaaces
+```
+
+### 🔄 Manual Setup (Advanced)
 
 ```bash
 # Create virtual environment (Python 3.12 recommended)
@@ -78,32 +140,38 @@ python3 -c "from app.models.database import init_db; init_db()"
 python3 run_simple.py
 ```
 
-### 3. Docker Deployment
+### 💡 Which Installation Should You Use?
+
+**Choose `install.sh` if you:**
+- Want to quickly try out FAAAAACES
+- Are developing or testing locally
+- Had issues with the old deploy script getting stuck
+- Don't need system services or production features
+
+**Choose `deploy.sh` if you:**
+- Are deploying to a production server
+- Need system service management
+- Want full performance optimization
+- Require the deployment binary system
+- Need nginx/Apache integration
+
+### 🆘 Troubleshooting Previous Installation Issues
+
+If you had problems with the old deploy script getting stuck on port 5004:
 
 ```bash
-# Build and run with Docker Compose
-docker-compose up -d
+# Kill any stuck processes
+pkill -f "python.*5004"
+pkill -f "python.*5005"
 
-# Check status
-docker-compose ps
-
-# View logs
-docker-compose logs -f faaaaaces
-```
-
-### 4. Production Deployment
-
-```bash
-# Setup reverse proxy (nginx/Apache)
-./deploy/faaaaaces proxy
-
-# For production with SSL
-./deploy/setup-reverse-proxy.sh
+# Clean and start fresh
+./install.sh clean  # or ./deploy.sh clean
+./install.sh        # Use the new local installer
 ```
 
 The application will be available at `http://localhost:5005` (or your configured domain with reverse proxy).
 
-### 5. Process Your First Video
+## Process Your First Video
 
 **🎭 Mask Detection Workflow** (Advanced Features)
 1. Visit the **Mask Detection Workflow** page
@@ -130,7 +198,9 @@ The application will be available at `http://localhost:5005` (or your configured
 - Processing status and face detection results
 - Face clustering and similarity analysis
 
-## Deployment Management
+## Deployment Management (Production Only)
+
+**Note:** These commands are only available after running `./deploy.sh`. For local development, use `python3 run.py` directly.
 
 ### Binary Commands
 
@@ -168,10 +238,13 @@ The `deploy/faaaaaces` binary provides comprehensive deployment management:
 ### Deployment Scripts
 
 ```bash
-# Master deployment script
+# Local development installation (recommended)
+./install.sh                      # Quick local setup
+
+# Production deployment
 ./deploy.sh                       # Full automated deployment
 
-# Reverse proxy setup
+# Reverse proxy setup (production)
 ./deploy/setup-reverse-proxy.sh   # Interactive nginx/Apache setup
 ```
 
@@ -256,6 +329,24 @@ TEMP_FOLDER=temp       # Temporary processing files
 - Configure frame extraction interval to balance accuracy vs. speed
 
 ## Troubleshooting
+
+### Installation Issues
+
+**Getting stuck on port 5004 during installation?**
+This was a known issue with the old deploy.sh script. Use the new `install.sh` for local development:
+```bash
+# Kill any stuck processes
+pkill -f "python.*5004"
+pkill -f "python.*5005"
+
+# Use the new local installer
+./install.sh
+```
+
+**Models not downloading?**
+Models are downloaded on first use, not during installation:
+- DeepFace models: Downloaded to `~/.deepface/weights/` when first processing a video
+- YOLO models: Only pre-downloaded in production deployment (`deploy.sh`)
 
 ### Common Issues
 
@@ -391,29 +482,27 @@ faaaaaces/
 ### Testing
 
 ```bash
-# Run test suite
-./deploy/faaaaaces test
-
-# Run specific tests
+# Local development testing
 python -m pytest tests/test_server.py
 python -m pytest tests/test_face_reconstruction.py
 
-# Health check
+# Production testing (requires deploy.sh)
+./deploy/faaaaaces test
 ./deploy/faaaaaces health
 ```
 
-### Deployment
+### Development Workflow
 
 ```bash
-# Full deployment
-./deploy.sh
-
-# Development server
-./deploy/faaaaaces start --debug --foreground
+# Local development (recommended)
+./install.sh                      # One-time setup
+source .venv/bin/activate         # Activate environment
+python3 run.py                    # Start dev server
 
 # Production deployment
-./deploy/faaaaaces proxy  # Setup reverse proxy
-./deploy/faaaaaces start  # Start production server
+./deploy.sh                       # Full deployment
+./deploy/faaaaaces start          # Start production server
+./deploy/faaaaaces proxy          # Setup reverse proxy
 ```
 
 ## License
