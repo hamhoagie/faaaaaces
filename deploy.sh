@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# FAAAAACES Deployment Script
-# Complete deployment automation for Face Recognition & Mask Detection Platform
+# FAAAAACES Production Deployment Script
+# Complete production deployment automation for Face Recognition & Mask Detection Platform
+# For local development installation, use install.sh instead
 
 set -e  # Exit on any error
 
@@ -376,12 +377,51 @@ EOF
     print_status "Deployment report generated: $REPORT_FILE"
 }
 
+# Production environment check
+check_production_readiness() {
+    print_header "Checking Production Readiness"
+    
+    # Warn about production deployment
+    echo -e "${YELLOW}⚠️  This is a PRODUCTION deployment script${NC}"
+    echo -e "${YELLOW}   For local development, use install.sh instead${NC}"
+    echo ""
+    
+    read -p "Are you deploying to a production environment? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "For local development installation, use: ./install.sh"
+        exit 0
+    fi
+    
+    # Check if running as production user
+    if [ "$USER" = "root" ]; then
+        print_warning "Running as root - consider using a dedicated service user"
+    fi
+    
+    # Check if this looks like a production environment
+    if [ -d "/home" ] || [ -d "/var/www" ] || [ -f "/etc/nginx/nginx.conf" ] || [ -f "/etc/apache2/apache2.conf" ]; then
+        print_info "Production environment detected"
+    else
+        print_warning "This doesn't appear to be a typical production environment"
+        read -p "Continue with production deployment anyway? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 0
+        fi
+    fi
+    
+    print_status "Production deployment confirmed"
+}
+
 # Main deployment function
 deploy() {
-    print_header "Starting FAAAAACES Deployment"
+    print_header "Starting FAAAAACES Production Deployment"
     
     # Clear previous log
     > "$LOG_FILE"
+    
+    # Production readiness check
+    check_production_readiness
     
     # Run deployment steps
     check_system_requirements
@@ -425,13 +465,26 @@ case "${1:-deploy}" in
         print_status "Deployment cleaned"
         ;;
     "help")
-        echo "FAAAAACES Deployment Script"
+        echo "FAAAAACES Production Deployment Script"
         echo "Usage: $0 [command]"
         echo ""
+        echo "⚠️  This script is for PRODUCTION deployments only!"
+        echo "   For local development, use: ./install.sh"
+        echo ""
         echo "Commands:"
-        echo "  deploy    - Full deployment (default)"
+        echo "  deploy    - Full production deployment (default)"
         echo "  clean     - Clean deployment files"
         echo "  help      - Show this help"
+        echo ""
+        echo "Production Features:"
+        echo "  • Complete system service setup (systemd/launchd)"
+        echo "  • Performance optimization"
+        echo "  • Full test suite including server tests"
+        echo "  • Deployment reporting"
+        echo "  • Production environment validation"
+        echo ""
+        echo "For local development installation:"
+        echo "  ./install.sh"
         ;;
     *)
         echo "Unknown command: $1"
